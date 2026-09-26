@@ -1,9 +1,10 @@
 # Neptuno · orquestación local (metodología de microservicios).
 #
-# De momento solo está implementado el frontend. Los bloques de los demás
-# servicios quedan comentados y se activarán a medida que se construyan.
+#   docker compose up --build   -> frontend en http://localhost:8080
+#                                  servicio-usuarios en http://localhost:8081
+#                                  consola de RabbitMQ en http://localhost:15672
 #
-#   docker compose up --build        -> levanta el frontend en http://localhost:8080
+# Los bloques de los servicios que aún no se implementan quedan comentados.
 services:
   frontend:
     build:
@@ -20,17 +21,72 @@ services:
       INVENTARIO_SERVICE_PORT: "8083"
       NOTIFICACIONES_SERVICE_HOST: servicio-notificaciones
       NOTIFICACIONES_SERVICE_PORT: "8084"
+    depends_on:
+      servicio-usuarios:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- ms-auth-catalogs: autenticación, seguridad (RBAC) y datos maestros ---
+  servicio-usuarios:
+    build:
+      context: ./servicio-usuarios
+    container_name: neptuno-usuarios
+    ports:
+      # Expuesto solo para pruebas locales; nginx lo consume por la red interna.
+      - "8081:8081"
+    environment:
+      DB_URL: jdbc:mysql://db-usuarios:3306/auth_catalogs_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USUARIO: neptuno
+      DB_CLAVE: neptuno
+      JWT_SECRETO: ${JWT_SECRETO:-neptuno-secreto-local-2026-cambiar-en-produccion-32b}
+      CLAVE_SERVICIOS: ${CLAVE_SERVICIOS:-neptuno-clave-interna-local}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USUARIO: neptuno
+      RABBIT_CLAVE: neptuno
+      ADMIN_CORREO: ${ADMIN_CORREO:-laura.restrepo@neptuno.gov.co}
+      ADMIN_CLAVE: ${ADMIN_CLAVE:-Neptuno*2026}
+    depends_on:
+      db-usuarios:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db-usuarios:
+    image: mysql:8.4
+    container_name: neptuno-db-usuarios
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: auth_catalogs_db
+      MYSQL_USER: neptuno
+      MYSQL_PASSWORD: neptuno
+    volumes:
+      - db-usuarios-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "neptuno", "-pneptuno"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+  # Broker de eventos: el servicio publica aquí la bitácora para ms-audit-infra.
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: neptuno-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: neptuno
+      RABBITMQ_DEFAULT_PASS: neptuno
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
     restart: unless-stopped
 
   # --- Pendientes de implementación ---
-  # servicio-usuarios:
-  #   build: ./servicio-usuarios
-  #   container_name: neptuno-usuarios
-  #   expose: ["8081"]
-  #   environment:
-  #     DATABASE_URL: postgres://neptuno:neptuno@db-usuarios:5432/usuarios
-  #   depends_on: [db-usuarios]
-  #
   # servicio-pagos:
   #   build: ./servicio-pagos
   #   container_name: neptuno-pagos
@@ -45,14 +101,6 @@ services:
   #   build: ./servicio-notificaciones
   #   container_name: neptuno-notificaciones
   #   expose: ["8084"]
-  #
-  # db-usuarios:
-  #   image: postgres:16-alpine
-  #   environment:
-  #     POSTGRES_USER: neptuno
-  #     POSTGRES_PASSWORD: neptuno
-  #     POSTGRES_DB: usuarios
-  #   volumes: ["db-usuarios-data:/var/lib/postgresql/data"]
 
-# volumes:
-#   db-usuarios-data:
+volumes:
+  db-usuarios-data:
