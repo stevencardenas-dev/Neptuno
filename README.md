@@ -4,9 +4,10 @@ Repositorio monorepo que sigue una metodología de **microservicios**, con un
 frontend y un servicio por dominio. La identidad visual del sistema usa la
 paleta institucional **azul, rojo y blanco**.
 
-> **Estado actual:** solo está implementado el **frontend** (`frontend/`). Las
-> vistas están pobladas con datos mock para navegarlas y tomar capturas de
-> "mockup". Los servicios de dominio se agregarán en las carpetas indicadas.
+> **Estado actual:** implementados el **frontend** (`frontend/`) y el
+> **servicio de usuarios** (`servicio-usuarios/`, Java 21 + Spring Boot + MySQL).
+> El resto de vistas sigue poblada con datos mock para tomar capturas de
+> "mockup"; los demás servicios de dominio se agregarán en las carpetas indicadas.
 
 ## Estructura del proyecto
 
@@ -16,9 +17,9 @@ Neptuno/
 │   ├── src/
 │   ├── package.json
 │   └── Dockerfile
-├── servicio-usuarios/            # pendiente (usuarios, roles y permisos)
+├── servicio-usuarios/            # Java 21 + Spring Boot  ← implementado (HU-001…HU-016, HU-022)
 │   ├── src/
-│   ├── requirements.txt | package.json | go.mod
+│   ├── pom.xml
 │   └── Dockerfile
 ├── servicio-pagos/               # pendiente
 │   ├── src/
@@ -88,5 +89,52 @@ docker compose up --build     # frontend en http://localhost:8080
 
 nginx sirve la SPA y actúa como punto de entrada de la API: reenvía cada ruta
 `/api/*` al microservicio correspondiente según las variables de entorno, de
-modo que el navegador solo habla con un origen. Los bloques de los servicios
-están comentados en `docker-compose.yml` hasta que se implementen.
+modo que el navegador solo habla con un origen.
+
+`docker compose up --build` levanta además:
+
+| Contenedor | Puerto | Descripción |
+|------------|--------|-------------|
+| `neptuno-frontend` | 8080 | SPA + proxy de `/api/usuarios/*` |
+| `neptuno-usuarios` | 8081 | servicio de usuarios (ms-auth-catalogs) |
+| `neptuno-db-usuarios` | interno | MySQL 8 con `auth_catalogs_db` |
+| `neptuno-rabbitmq` | 15672 | broker de eventos hacia ms-audit-infra (consola web) |
+
+Los bloques de los servicios que aún no se implementan siguen comentados en
+`docker-compose.yml`.
+
+## Servicio de usuarios (`ms-auth-catalogs`)
+
+Autenticación, seguridad y datos maestros: inicio y cierre de sesión con JWT,
+control de acceso basado en roles y permisos (RBAC), administración de usuarios y
+roles, y catálogos de áreas, tipos documentales y entidades.
+
+- **Stack:** Java 21 · Spring Boot 3.5 · Spring Security (JWT HS256) · Spring Data JPA ·
+  Flyway · MySQL 8 · RabbitMQ · springdoc OpenAPI.
+- **Historias cubiertas:** HU-001…HU-016 y HU-022 del backlog (contexto delimitado
+  IAM + Parametrización y Datos Maestros).
+- **Trazabilidad:** [`docs/MATRIZ-API-HU.md`](docs/MATRIZ-API-HU.md) relaciona cada HU
+  con su endpoint, el permiso que exige y la prueba que la verifica.
+
+### Ejecutar en local
+
+```bash
+# 1. Base de datos y broker (o usa docker compose completo)
+docker run -d --name neptuno-db-usuarios -p 3306:3306 \
+  -e MYSQL_DATABASE=auth_catalogs_db -e MYSQL_USER=neptuno -e MYSQL_PASSWORD=neptuno \
+  -e MYSQL_ROOT_PASSWORD=root mysql:8.4
+
+# 2. Servicio
+cd servicio-usuarios
+mvn spring-boot:run          # http://localhost:8081/api/usuarios
+mvn test                     # 35 pruebas de integración con H2 en memoria
+```
+
+- **Swagger UI:** http://localhost:8081/api/usuarios/documentacion
+- **Usuario administrador inicial:** `laura.restrepo@neptuno.gov.co` / `Neptuno*2026`
+  (se crea una sola vez, con el catálogo de 25 permisos —el rol Administrador recibe
+  24: `radicados:radicar-recibido` es exclusivo del rol Radicador, HU-024—, 6 roles,
+  6 áreas, 7 tipos documentales y 5 entidades). Cambia la clave y el `JWT_SECRETO`
+  en producción.
+- **API interna entre microservicios:** `/api/usuarios/interno/**` se autentica con la
+  cabecera `X-Servicio-Clave` (variable `CLAVE_SERVICIOS`).
