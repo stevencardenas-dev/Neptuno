@@ -1,0 +1,75 @@
+server:
+  port: ${SERVER_PORT:8081}
+  shutdown: graceful
+
+spring:
+  application:
+    name: servicio-usuarios
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/auth_catalogs_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DB_USUARIO:neptuno}
+    password: ${DB_CLAVE:neptuno}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: ${FLYWAY_ACTIVO:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USUARIO:neptuno}
+    password: ${RABBIT_CLAVE:neptuno}
+  jackson:
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    # El servicio opera aunque RabbitMQ esté caído: los eventos quedan pendientes y se
+    # reintentan. Por eso solo la base de datos es crítica para el estado de salud.
+    rabbit:
+      enabled: ${RABBIT_HEALTH:false}
+
+springdoc:
+  swagger-ui:
+    path: /api/usuarios/documentacion
+  api-docs:
+    path: /api/usuarios/openapi
+
+# Parámetros propios del microservicio (ms-auth-catalogs)
+neptuno:
+  jwt:
+    # El secreto debe tener al menos 32 caracteres (HS256). Sobrescribir en producción.
+    secreto: ${JWT_SECRETO:neptuno-secreto-local-2026-cambiar-en-produccion-32b}
+    emisor: ${JWT_EMISOR:neptuno-ms-auth-catalogs}
+    vigencia-acceso: ${JWT_VIGENCIA:PT30M}
+    vigencia-refresco: ${JWT_VIGENCIA_REFRESCO:PT12H}
+  servicios:
+    # Clave compartida para llamadas máquina a máquina (endpoints /interno/**)
+    clave-interna: ${CLAVE_SERVICIOS:neptuno-clave-interna-local}
+  eventos:
+    # Publica los eventos de bitácora en RabbitMQ (ms-audit-infra). Si RabbitMQ no responde,
+    # el evento queda registrado en la tabla evento_auditoria y se reintenta en el siguiente arranque.
+    publicar: ${PUBLICAR_EVENTOS:true}
+    exchange: ${EVENTOS_EXCHANGE:neptuno.eventos}
+    cola-auditoria: ${EVENTOS_COLA_AUDITORIA:audit.infrastructure}
+    routing-key: ${EVENTOS_ROUTING_KEY:audit.evento}
+  datos-iniciales:
+    # Crea (una sola vez) el catálogo de permisos, los roles base, los catálogos maestros y el usuario administrador.
+    activo: ${DATOS_INICIALES:true}
+    administrador-correo: ${ADMIN_CORREO:laura.restrepo@neptuno.gov.co}
+    administrador-clave: ${ADMIN_CLAVE:Neptuno*2026}

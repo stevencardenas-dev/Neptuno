@@ -1,0 +1,45 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:auth_catalogs;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: false
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+neptuno:
+  jwt:
+    secreto: secreto-de-pruebas-neptuno-con-mas-de-32-caracteres
+    emisor: neptuno-ms-auth-catalogs
+    vigencia-acceso: PT30M
+    vigencia-refresco: PT2H
+  servicios:
+    clave-interna: clave-interna-de-pruebas
+  eventos:
+    publicar: false
+  datos-iniciales:
+    activo: true
+    administrador-correo: laura.restrepo@neptuno.gov.co
+    administrador-clave: Neptuno*2026
+
+logging:
+  level:
+    root: WARN
+    co.gov.neptuno: INFO
+    org.springframework: WARN
