@@ -1,22 +1,42 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
   IconCandado, IconEscudo, IconInfo, IconSalir, IconTridente,
 } from '../components/Icons.jsx'
+import { useSesion } from '../sesion/SesionProvider.jsx'
 
 function Login() {
   const navigate = useNavigate()
-  const [correo, setCorreo] = useState('laura.restrepo@neptuno.gov.co')
-  const [clave, setClave] = useState('••••••••••')
-  const [error, setError] = useState('')
+  const { state } = useLocation()
+  const { sesion, iniciar } = useSesion()
 
-  function entrar(e) {
+  const [correo, setCorreo] = useState('laura.restrepo@neptuno.gov.co')
+  const [clave, setClave] = useState('')
+  const [error, setError] = useState('')
+  const [enviando, setEnviando] = useState(false)
+
+  const destino = state?.destino ?? '/app'
+
+  // Con sesión vigente no tiene sentido volver a autenticarse.
+  if (sesion) return <Navigate to={destino} replace />
+
+  async function entrar(e) {
     e.preventDefault()
     if (!correo || !clave) {
       setError('Debes ingresar correo y contraseña para continuar.')
       return
     }
-    navigate('/app')
+    setEnviando(true)
+    setError('')
+    try {
+      await iniciar(correo, clave)
+      navigate(destino, { replace: true })
+    } catch (fallo) {
+      // El servicio responde 401 con el motivo: credenciales inválidas o cuenta bloqueada.
+      setError(fallo.message)
+    } finally {
+      setEnviando(false)
+    }
   }
 
   return (
@@ -60,6 +80,7 @@ function Login() {
                 value={correo}
                 onChange={(e) => setCorreo(e.target.value)}
                 placeholder="nombre@neptuno.gov.co"
+                autoComplete="username"
               />
             </div>
             <div className="field">
@@ -70,6 +91,7 @@ function Login() {
                 value={clave}
                 onChange={(e) => setClave(e.target.value)}
                 placeholder="••••••••"
+                autoComplete="current-password"
               />
             </div>
             <div className="row between">
@@ -78,20 +100,21 @@ function Login() {
               </label>
               <a className="btn-link" href="#recuperar" onClick={(e) => e.preventDefault()}>¿Olvidaste tu contraseña?</a>
             </div>
-            <button className="btn block" type="submit">
-              <IconCandado size={17} /> Ingresar
+            <button className="btn block" type="submit" disabled={enviando}>
+              <IconCandado size={17} /> {enviando ? 'Validando…' : 'Ingresar'}
             </button>
             {error ? <div className="error-message">{error}</div> : null}
           </form>
 
           <p className="form-note">
             <IconInfo size={15} />
-            Mockup demostrativo: cualquier credencial abre el panel, que respeta
-            únicamente lo que permite tu perfil.
+            Autenticación real contra <strong>ms-auth-catalogs</strong>: el token JWT que
+            devuelve el servicio controla el acceso a las páginas privadas (HU-001, HU-002).
           </p>
           <div className="divider mt-16" />
           <p className="muted small mt-16">
-            <Link className="btn-link" to="/">Ver índice de mockups</Link>
+            Administrador inicial en local: <span className="code">laura.restrepo@neptuno.gov.co</span>{' '}
+            / <span className="code">Neptuno*2026</span> · <Link className="btn-link" to="/">Ver índice de mockups</Link>
           </p>
         </div>
       </section>
