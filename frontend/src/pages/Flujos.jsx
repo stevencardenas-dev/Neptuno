@@ -205,16 +205,16 @@ function Flujos() {
           ) : null}
         </div>
 
-        <div className="grid grid-2">
-          <Card title="Agregar al lienzo" icono={<IconNodo size={17} />}>
-            <div className="flow-palette">
-              <button type="button"><IconNodo size={16} /> Agregar estado (nodo)</button>
-              <button type="button"><IconFlujo size={16} /> Agregar transición</button>
-              <button type="button"><IconCheck size={16} /> Marcar estado inicial / final</button>
-              <button type="button"><IconUsuarios size={16} /> Asignar rol o área</button>
-            </div>
-          </Card>
+        <Card title="Agregar al lienzo" icono={<IconNodo size={17} />}>
+          <div className="flow-palette">
+            <button type="button"><IconNodo size={16} /> Agregar estado (nodo)</button>
+            <button type="button"><IconFlujo size={16} /> Agregar transición</button>
+            <button type="button"><IconCheck size={16} /> Marcar estado inicial / final</button>
+            <button type="button"><IconUsuarios size={16} /> Asignar rol o área</button>
+          </div>
+        </Card>
 
+        <div className="flujo-fila">
           <Card
             title={`Estado · ${nodo.nombre}`}
             sub={nodo.tipo === 'inicio' ? 'Estado inicial' : nodo.tipo === 'final' ? 'Estado final' : 'Paso intermedio'}
@@ -267,36 +267,42 @@ function Flujos() {
               <button className="btn ghost sm" type="button"><IconPapelera size={15} /> Eliminar transición</button>
             </div>
           </Card>
-
-          <Card title="Validación para publicar" icono={<IconAlerta size={17} />}>
-            <div className="stack" style={{ gap: 10 }}>
-              {validaciones.map((v) => (
-                <div className="row" key={v.texto} style={{ gap: 10 }}>
-                  <span className={`dot ${v.ok ? 'verde' : 'rojo'}`} />
-                  <span className={v.ok ? 'muted' : 'strong'}>{v.texto}</span>
-                </div>
-              ))}
-            </div>
-            <button className="btn mt-16 block" type="button" disabled={validaciones.some((v) => !v.ok)}>
-              <IconCheck size={16} /> Publicar flujo
-            </button>
-            <p className="hint mt-8">Un flujo solo se publica si está completo y sin pasos aislados.</p>
-          </Card>
-
-          <Card title="Datos generales" icono={<IconFlujo size={17} />}>
-            <KV items={[
-              { k: 'Duración máxima global', v: d.duracionMax },
-              { k: 'Responsables', v: 'Radicador, Tesorero, Gerencia' },
-              { k: 'Estados', v: `${d.nodos.length}` },
-              { k: 'Transiciones', v: `${d.transiciones.length}` },
-            ]} />
-          </Card>
-
-          <Note icono={<IconInfo size={17} />}>
-            Al crear una <strong>nueva versión</strong> de un flujo activo, los documentos en tránsito
-            continúan con la versión con la que iniciaron para mantener la retrocompatibilidad.
-          </Note>
         </div>
+
+        {/* Resumen: reúne los datos generales y la validación previa a publicar */}
+        <Card title="Resumen" sub="Datos generales y validación del flujo" icono={<IconAlerta size={17} />}>
+          <div className="resumen-grid">
+            <div>
+              <span className="muted small strong">Datos generales</span>
+              <KV items={[
+                { k: 'Duración máxima global', v: d.duracionMax },
+                { k: 'Responsables', v: 'Radicador, Tesorero, Gerencia' },
+                { k: 'Estados', v: `${d.nodos.length}` },
+                { k: 'Transiciones', v: `${d.transiciones.length}` },
+              ]} />
+            </div>
+            <div>
+              <span className="muted small strong">Validación para publicar</span>
+              <div className="stack mt-8" style={{ gap: 10 }}>
+                {validaciones.map((v) => (
+                  <div className="row" key={v.texto} style={{ gap: 10 }}>
+                    <span className={`dot ${v.ok ? 'verde' : 'rojo'}`} />
+                    <span className={v.ok ? 'muted' : 'strong'}>{v.texto}</span>
+                  </div>
+                ))}
+              </div>
+              <button className="btn mt-16 block" type="button" disabled={validaciones.some((v) => !v.ok)}>
+                <IconCheck size={16} /> Publicar flujo
+              </button>
+              <p className="hint mt-8">Un flujo solo se publica si está completo y sin pasos aislados.</p>
+            </div>
+          </div>
+        </Card>
+
+        <Note icono={<IconInfo size={17} />}>
+          Al crear una <strong>nueva versión</strong> de un flujo activo, los documentos en tránsito
+          continúan con la versión con la que iniciaron para mantener la retrocompatibilidad.
+        </Note>
       </div>
     </>
   )
