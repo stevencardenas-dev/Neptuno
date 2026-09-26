@@ -9,6 +9,24 @@ las capturas de mockup.
   `frontend/src/data/mock.js`.
 - **Índice navegable de mockups:** ruta `/` del frontend.
 
+## Vistas conectadas al servicio real
+
+Cuatro vistas dejaron de usar datos de ejemplo y consumen el API de
+`servicio-usuarios` (`ms-auth-catalogs`) con el JWT de la sesión. Las demás
+siguen siendo prototipo porque sus microservicios aún no existen.
+
+| Vista | Ruta | Endpoints | HU |
+|-------|------|-----------|-----|
+| Autenticación y acceso | `/login` | `POST /auth/login`, `POST /auth/logout` | HU-001, HU-002 |
+| Administración de usuarios | `/app/usuarios` | `GET/POST/PUT/DELETE /usuarios`, `PUT /usuarios/{id}/roles` | HU-003…HU-006, HU-012 |
+| Roles y permisos | `/app/roles` | `GET/POST/PUT/DELETE /roles`, `GET /permisos`, `PUT /roles/{id}/permisos` | HU-007…HU-011 |
+| Configuración (catálogos) | `/app/configuracion` | `GET/POST/PUT/DELETE /areas`, `/tipos-documentales`, `/entidades` | HU-015, HU-016, HU-022 |
+
+Las páginas privadas exigen sesión (guarda de rutas) y el menú solo muestra las
+vistas cuyos permisos trae la sesión (HU-013). Las tablas de cada vista indican
+el resultado real del servicio: un `403` aparece como "no tienes el permiso
+requerido" y un `409` como conflicto de regla de negocio.
+
 ## Resumen por vista
 
 | # | Vista | Ruta | HU cubiertas | Total |
@@ -22,6 +40,9 @@ las capturas de mockup.
 | 7 | Administración de usuarios | `/app/usuarios` | HU-003…HU-006, HU-012 | 5 |
 | 8 | Roles y permisos | `/app/roles` | HU-007…HU-011 | 5 |
 | 9 | Configuración y parámetros del sistema | `/app/configuracion` | HU-015, HU-016, HU-022, HU-081, HU-082 | 5 |
+
+> Las filas 7, 8 y 9 tienen su catálogo conectado al servicio; la pestaña de
+> copias de seguridad (HU-081, HU-082) sigue siendo prototipo.
 | 10 | Gestión de plantillas y renderizado | `/app/plantillas` | HU-035…HU-038 | 4 |
 | 11 | Diseñador de flujos de trabajo | `/app/flujos` | HU-048…HU-061, HU-069, HU-072…HU-073, HU-076, HU-078…HU-080 | 21 |
 | 12 | Bitácora y auditoría | `/app/bitacora` | HU-043…HU-047, HU-077 | 6 |

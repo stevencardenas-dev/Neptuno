@@ -6,8 +6,9 @@ paleta institucional **azul, rojo y blanco**.
 
 > **Estado actual:** implementados el **frontend** (`frontend/`) y el
 > **servicio de usuarios** (`servicio-usuarios/`, Java 21 + Spring Boot + MySQL).
-> El resto de vistas sigue poblada con datos mock para tomar capturas de
-> "mockup"; los demás servicios de dominio se agregarán en las carpetas indicadas.
+> Cuatro vistas del frontend ya consumen ese servicio con JWT real (login,
+> usuarios, roles y parámetros); el resto sigue poblada con datos mock para tomar
+> capturas de "mockup", porque sus microservicios todavía no existen.
 
 ## Estructura del proyecto
 
@@ -40,15 +41,38 @@ Neptuno/
 - **Stack:** Vite + React 19 + React Router 7.
 - **Sin dependencias de UI externas:** el sistema de diseño vive en
   `src/styles.css` (tokens, componentes y layout).
-- **Sin backend:** todas las vistas usan datos mock en `src/data/mock.js`.
+- **Servicio real:** cuatro vistas consumen el API de `servicio-usuarios` con el
+  token JWT de la sesión; el resto usa datos mock en `src/data/mock.js`.
+
+### Vistas conectadas al servicio
+
+| Vista | Ruta | Endpoints que consume | HU |
+|-------|------|----------------------|-----|
+| Autenticación | `/login` | `POST /auth/login`, `POST /auth/logout` | HU-001, HU-002 |
+| Usuarios | `/app/usuarios` | `GET/POST/PUT/DELETE /usuarios`, `PUT /usuarios/{id}/roles` | HU-003…HU-006, HU-012 |
+| Roles y permisos | `/app/roles` | `GET/POST/PUT/DELETE /roles`, `GET /permisos`, `PUT /roles/{id}/permisos` | HU-007…HU-011 |
+| Parámetros | `/app/configuracion` | `GET/POST/PUT/DELETE /areas`, `/tipos-documentales`, `/entidades` | HU-015, HU-016, HU-022 |
+
+Las páginas privadas exigen sesión: sin token vigente el frontend vuelve a
+`/login`, y el menú solo ofrece las vistas cuyos permisos trae la sesión
+(HU-013). Con `npm run dev`, el proxy de `vite.config.js` reenvía `/api/*` al
+servicio; en contenedores lo hace nginx.
+
+> Las nueve vistas restantes siguen siendo prototipo con datos de ejemplo
+> (radicación, radicados, bandeja, expediente, plantillas, flujos, bitácora,
+> panel y rendimiento): sus microservicios todavía no están implementados.
 
 ### Ejecutar en local
 
 ```bash
 cd frontend
 npm install
-npm run dev          # http://localhost:5173
+npm run dev          # http://localhost:5173 (proxy /api/* → localhost:8081)
 ```
+
+Para que el login y las vistas conectadas funcionen, el servicio debe estar
+arriba (ver [Servicio de usuarios](#servicio-de-usuarios-ms-auth-catalogs)):
+`cd servicio-usuarios && mvn spring-boot:run`.
 
 Build de producción:
 
