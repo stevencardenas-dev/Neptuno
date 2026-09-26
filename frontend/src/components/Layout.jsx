@@ -1,11 +1,13 @@
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { sesion } from '../data/mock.js'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useSesion } from '../sesion/SesionProvider.jsx'
 import {
   IconBandeja, IconBitacora, IconBuscar, IconCampana, IconConfig,
   IconEscudo, IconExpediente, IconFlujo, IconGlobo, IconPlantillas, IconRadicar,
   IconRendimiento, IconResumen, IconRoles, IconSalir, IconTridente, IconUsuarios,
 } from './Icons.jsx'
 
+// Las vistas con `permiso` solo se ofrecen si la sesión trae ese permiso (HU-013).
+// Las que no lo tienen siguen siendo prototipo y no dependen del servicio.
 const grupos = [
   {
     titulo: 'Operación',
@@ -20,9 +22,9 @@ const grupos = [
   {
     titulo: 'Administración',
     enlaces: [
-      { to: '/app/usuarios', label: 'Usuarios', Icono: IconUsuarios },
-      { to: '/app/roles', label: 'Roles y permisos', Icono: IconRoles },
-      { to: '/app/configuracion', label: 'Parámetros', Icono: IconConfig },
+      { to: '/app/usuarios', label: 'Usuarios', Icono: IconUsuarios, permiso: 'usuarios:consultar' },
+      { to: '/app/roles', label: 'Roles y permisos', Icono: IconRoles, permiso: 'roles:consultar' },
+      { to: '/app/configuracion', label: 'Parámetros', Icono: IconConfig, permiso: 'catalogos:consultar' },
       { to: '/app/plantillas', label: 'Plantillas', Icono: IconPlantillas },
       { to: '/app/flujos', label: 'Diseñador de flujos', Icono: IconFlujo },
     ],
@@ -53,7 +55,18 @@ const titulos = {
 
 function Layout() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const { sesion, cerrar, puede } = useSesion()
   const meta = titulos[pathname] ?? ['Neptuno', 'Gestión documental']
+
+  const visibles = grupos
+    .map((grupo) => ({ ...grupo, enlaces: grupo.enlaces.filter((enlace) => !enlace.permiso || puede(enlace.permiso)) }))
+    .filter((grupo) => grupo.enlaces.length)
+
+  async function salir() {
+    await cerrar()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="app">
@@ -68,7 +81,7 @@ function Layout() {
           </span>
         </Link>
 
-        {grupos.map((g) => (
+        {visibles.map((g) => (
           <div key={g.titulo}>
             <div className="sidebar-section">{g.titulo}</div>
             <nav className="sidebar-nav">
@@ -84,14 +97,14 @@ function Layout() {
         ))}
 
         <div className="sidebar-user">
-          <span className="avatar">{sesion.iniciales}</span>
+          <span className="avatar">{sesion?.iniciales ?? '··'}</span>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <strong>{sesion.nombre}</strong>
-            <small>{sesion.rolPrincipal}</small>
+            <strong>{sesion?.nombre ?? 'Sesión sin datos'}</strong>
+            <small title={sesion?.area}>{sesion?.rolPrincipal ?? 'Sin rol'}{sesion?.area ? ` · ${sesion.area}` : ''}</small>
           </div>
-          <Link to="/login" className="icon-btn" title="Cerrar sesión" style={{ position: 'relative' }}>
+          <button className="icon-btn" type="button" title="Cerrar sesión" onClick={salir}>
             <IconSalir size={17} />
-          </Link>
+          </button>
         </div>
       </aside>
 
@@ -113,8 +126,8 @@ function Layout() {
             <Link to="/" className="icon-btn" title="Índice de mockups">
               <IconGlobo size={18} />
             </Link>
-            <span className="badge rojo" title="Rol con acceso total">
-              <IconEscudo size={13} /> {sesion.rolPrincipal}
+            <span className="badge rojo" title={`Permisos vigentes: ${sesion?.permisos?.length ?? 0}`}>
+              <IconEscudo size={13} /> {sesion?.rolPrincipal ?? 'Sin rol'}
             </span>
           </div>
         </header>

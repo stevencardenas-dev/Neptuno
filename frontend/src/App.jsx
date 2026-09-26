@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Layout from './components/Layout.jsx'
 import Bandeja from './pages/Bandeja.jsx'
 import Bitacora from './pages/Bitacora.jsx'
@@ -14,13 +14,26 @@ import Radicados from './pages/Radicados.jsx'
 import Rendimiento from './pages/Rendimiento.jsx'
 import Roles from './pages/Roles.jsx'
 import Usuarios from './pages/Usuarios.jsx'
+import { useSesion } from './sesion/SesionProvider.jsx'
+
+/**
+ * Guarda de las páginas privadas: sin sesión vigente se vuelve al login.
+ * El token lo emite ms-auth-catalogs y viaja en el JWT de cada solicitud.
+ */
+function RequiereSesion({ children }) {
+  const { sesion } = useSesion()
+  const { pathname } = useLocation()
+
+  if (!sesion) return <Navigate to="/login" replace state={{ destino: pathname }} />
+  return children
+}
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<MockIndex />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/app" element={<Layout />}>
+      <Route path="/app" element={<RequiereSesion><Layout /></RequiereSesion>}>
         <Route index element={<Panel />} />
         <Route path="radicacion" element={<Radicacion />} />
         <Route path="radicados" element={<Radicados />} />
