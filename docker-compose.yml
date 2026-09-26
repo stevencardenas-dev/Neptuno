@@ -1,0 +1,58 @@
+# Neptuno · orquestación local (metodología de microservicios).
+#
+# De momento solo está implementado el frontend. Los bloques de los demás
+# servicios quedan comentados y se activarán a medida que se construyan.
+#
+#   docker compose up --build        -> levanta el frontend en http://localhost:8080
+services:
+  frontend:
+    build:
+      context: ./frontend
+    container_name: neptuno-frontend
+    ports:
+      - "8080:80"
+    environment:
+      USUARIOS_SERVICE_HOST: servicio-usuarios
+      USUARIOS_SERVICE_PORT: "8081"
+      PAGOS_SERVICE_HOST: servicio-pagos
+      PAGOS_SERVICE_PORT: "8082"
+      INVENTARIO_SERVICE_HOST: servicio-inventario
+      INVENTARIO_SERVICE_PORT: "8083"
+      NOTIFICACIONES_SERVICE_HOST: servicio-notificaciones
+      NOTIFICACIONES_SERVICE_PORT: "8084"
+    restart: unless-stopped
+
+  # --- Pendientes de implementación ---
+  # servicio-usuarios:
+  #   build: ./servicio-usuarios
+  #   container_name: neptuno-usuarios
+  #   expose: ["8081"]
+  #   environment:
+  #     DATABASE_URL: postgres://neptuno:neptuno@db-usuarios:5432/usuarios
+  #   depends_on: [db-usuarios]
+  #
+  # servicio-pagos:
+  #   build: ./servicio-pagos
+  #   container_name: neptuno-pagos
+  #   expose: ["8082"]
+  #
+  # servicio-inventario:
+  #   build: ./servicio-inventario
+  #   container_name: neptuno-inventario
+  #   expose: ["8083"]
+  #
+  # servicio-notificaciones:
+  #   build: ./servicio-notificaciones
+  #   container_name: neptuno-notificaciones
+  #   expose: ["8084"]
+  #
+  # db-usuarios:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: neptuno
+  #     POSTGRES_PASSWORD: neptuno
+  #     POSTGRES_DB: usuarios
+  #   volumes: ["db-usuarios-data:/var/lib/postgresql/data"]
+
+# volumes:
+#   db-usuarios-data:
