@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { iniciales } from '../util/formato.js'
 import { IconCerrar } from './Icons.jsx'
 
@@ -62,6 +63,14 @@ export function Note({ children, tono = 'azul', icono }) {
 
 /* Modal genérico */
 export function Modal({ open, title, sub, onClose, children, footer, ancho }) {
+  // Escape cierra el modal, como se espera de cualquier diálogo.
+  useEffect(() => {
+    if (!open) return undefined
+    const alPresionar = (e) => { if (e.key === 'Escape') onClose?.() }
+    window.addEventListener('keydown', alPresionar)
+    return () => window.removeEventListener('keydown', alPresionar)
+  }, [open, onClose])
+
   if (!open) return null
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>

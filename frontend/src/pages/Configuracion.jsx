@@ -43,22 +43,22 @@ function FormularioArea({ registro, guardando, error, onCerrar, onGuardar }) {
       <form id="form-area" className="form-form" onSubmit={(e) => { e.preventDefault(); onGuardar({ codigo, nombre, responsable, estado }) }}>
         <div className="field-row">
           <div className="field">
-            <label>Código</label>
-            <input type="text" value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="Ej. PLAN" />
+            <label htmlFor="area-codigo">Código</label>
+            <input id="area-codigo" type="text" value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="Ej. PLAN" />
           </div>
           <div className="field">
-            <label>Nombre del área <span className="req">*</span></label>
-            <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Planeación" />
+            <label htmlFor="area-nombre">Nombre del área <span className="req">*</span></label>
+            <input id="area-nombre" type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Planeación" />
           </div>
         </div>
         <div className="field-row">
           <div className="field">
-            <label>Responsable</label>
-            <input type="text" value={responsable} onChange={(e) => setResponsable(e.target.value)} placeholder="Nombre del responsable" />
+            <label htmlFor="area-responsable">Responsable</label>
+            <input id="area-responsable" type="text" value={responsable} onChange={(e) => setResponsable(e.target.value)} placeholder="Nombre del responsable" />
           </div>
           <div className="field">
-            <label>Estado</label>
-            <select value={estado} onChange={(e) => setEstado(e.target.value)}>
+            <label htmlFor="area-estado">Estado</label>
+            <select id="area-estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
               <option value="ACTIVO">Activo</option>
               <option value="INACTIVO">Inactivo</option>
             </select>
@@ -97,26 +97,26 @@ function FormularioTipo({ registro, guardando, error, onCerrar, onGuardar }) {
       <form id="form-tipo" className="form-form" onSubmit={(e) => { e.preventDefault(); onGuardar({ nombre, prefijo, origenes, estado }) }}>
         <div className="field-row">
           <div className="field">
-            <label>Nombre <span className="req">*</span></label>
-            <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Orden de servicio" />
+            <label htmlFor="tipo-nombre">Nombre <span className="req">*</span></label>
+            <input id="tipo-nombre" type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Orden de servicio" />
           </div>
           <div className="field">
-            <label>Prefijo</label>
-            <input type="text" value={prefijo} onChange={(e) => setPrefijo(e.target.value)} placeholder="OS" />
+            <label htmlFor="tipo-prefijo">Prefijo</label>
+            <input id="tipo-prefijo" type="text" value={prefijo} onChange={(e) => setPrefijo(e.target.value)} placeholder="OS" />
           </div>
         </div>
         <div className="field-row">
           <div className="field">
-            <label>Estado</label>
-            <select value={estado} onChange={(e) => setEstado(e.target.value)}>
+            <label htmlFor="tipo-estado">Estado</label>
+            <select id="tipo-estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
               <option value="ACTIVO">Activo</option>
               <option value="INACTIVO">Inactivo</option>
             </select>
           </div>
         </div>
         <div className="field">
-          <label>Orígenes permitidos <span className="req">*</span></label>
-          <div className="row">
+          <label id="tipo-origenes">Orígenes permitidos <span className="req">*</span></label>
+          <div className="row" role="group" aria-labelledby="tipo-origenes">
             {ORIGENES.map((origen) => (
               <label key={origen.valor} className="switch">
                 <input type="checkbox" checked={origenes.includes(origen.valor)} onChange={() => alternarOrigen(origen.valor)} />
@@ -156,29 +156,29 @@ function FormularioEntidad({ registro, guardando, error, onCerrar, onGuardar }) 
       <form id="form-entidad" className="form-form" onSubmit={(e) => { e.preventDefault(); onGuardar({ nit, razonSocial, ciudad, tipo, estado }) }}>
         <div className="field-row">
           <div className="field">
-            <label>NIT <span className="req">*</span></label>
-            <input type="text" value={nit} onChange={(e) => setNit(e.target.value)} placeholder="900.000.000-0" />
+            <label htmlFor="entidad-nit">NIT <span className="req">*</span></label>
+            <input id="entidad-nit" type="text" value={nit} onChange={(e) => setNit(e.target.value)} placeholder="900.000.000-0" />
           </div>
           <div className="field">
-            <label>Razón social <span className="req">*</span></label>
-            <input type="text" value={razonSocial} onChange={(e) => setRazonSocial(e.target.value)} placeholder="Nombre de la entidad" />
+            <label htmlFor="entidad-razonSocial">Razón social <span className="req">*</span></label>
+            <input id="entidad-razonSocial" type="text" value={razonSocial} onChange={(e) => setRazonSocial(e.target.value)} placeholder="Nombre de la entidad" />
           </div>
         </div>
         <div className="field-row">
           <div className="field">
-            <label>Ciudad</label>
-            <input type="text" value={ciudad} onChange={(e) => setCiudad(e.target.value)} placeholder="Bogotá" />
+            <label htmlFor="entidad-ciudad">Ciudad</label>
+            <input id="entidad-ciudad" type="text" value={ciudad} onChange={(e) => setCiudad(e.target.value)} placeholder="Bogotá" />
           </div>
           <div className="field">
-            <label>Tipo</label>
-            <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+            <label htmlFor="entidad-tipo">Tipo</label>
+            <select id="entidad-tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}>
               <option>Proveedor</option><option>Entidad pública</option><option>Cliente</option>
             </select>
           </div>
         </div>
         <div className="field">
-          <label>Estado</label>
-          <select value={estado} onChange={(e) => setEstado(e.target.value)}>
+          <label htmlFor="entidad-estado">Estado</label>
+          <select id="entidad-estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
             <option value="ACTIVO">Activo</option>
             <option value="INACTIVO">Inactivo</option>
           </select>

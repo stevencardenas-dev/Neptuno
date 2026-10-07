@@ -63,9 +63,9 @@ function Panel() {
       />
 
       {metricas.length ? (
-        <div className="grid grid-4">
+        <div className="grid grid-metricas">
           {metricas.map(({ clave, metrica, label, icono, tono, to }) => (
-            <Link key={clave} to={to} style={{ color: 'inherit' }}>
+            <Link key={clave} to={to} className="stat-enlace">
               <Stat tono={tono} icono={icono} valor={valorMetrica(metrica)} label={label} />
             </Link>
           ))}

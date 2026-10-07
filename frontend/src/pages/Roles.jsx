@@ -39,19 +39,19 @@ function FormularioRol({ rol, tipos, guardando, error, onCerrar, onGuardar }) {
       <form id="form-rol" className="form-form" onSubmit={enviar}>
         <div className="field-row">
           <div className="field">
-            <label>Nombre del rol <span className="req">*</span></label>
-            <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Radicador, Tesorero, Gerente" />
+            <label htmlFor="rol-nombre">Nombre del rol <span className="req">*</span></label>
+            <input id="rol-nombre" type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Radicador, Tesorero, Gerente" />
           </div>
           <div className="field">
-            <label>Tipo</label>
-            <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+            <label htmlFor="rol-tipo">Tipo</label>
+            <select id="rol-tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}>
               {tipos.map((opcion) => <option key={opcion.valor} value={opcion.valor}>{opcion.etiqueta}</option>)}
             </select>
           </div>
         </div>
         <div className="field">
-          <label>Descripción</label>
-          <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="¿Qué puede hacer este perfil?" />
+          <label htmlFor="rol-descripcion">Descripción</label>
+          <textarea id="rol-descripcion" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="¿Qué puede hacer este perfil?" />
         </div>
         <Note icono={<IconInfo size={17} />}>
           Los permisos se asignan después con <strong>Editar permisos</strong>: el servicio los
@@ -150,13 +150,22 @@ function Roles() {
 
       <div className="stack">
         <div className="stack">
-          <Card title="Catálogo de roles" sub={`${roles.datos?.length ?? 0} perfiles definidos`} icono={<IconRoles size={17} />} tight>
+          <Card title="Catálogo de roles" sub={roles.cargando && !roles.datos ? 'Cargando…' : `${roles.datos?.length ?? 0} perfiles definidos`} icono={<IconRoles size={17} />} tight>
             <div className="list">
               {(roles.datos ?? []).map((rol) => (
                 <div
                   key={rol.id}
                   className="list-row"
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={rolActual === rol.id}
                   onClick={() => setSelId(rol.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setSelId(rol.id)
+                    }
+                  }}
                   style={rolActual === rol.id ? { borderColor: 'rgba(47,107,255,0.5)', background: 'rgba(47,107,255,0.12)' } : undefined}
                 >
                   <span className={`avatar ${rol.tipo === 'APROBADOR' ? 'rojo' : ''}`}>{rol.nombre[0]}</span>
@@ -227,7 +236,7 @@ function Roles() {
             ]} />
             <div className="row mt-16">
               {puedeEditar ? (
-                <button className="btn secondary sm" type="button" onClick={() => { setErrorAccion(''); setModal({ tipo: 'rol', rol: sel }) }}>
+                <button className="btn secondary sm" type="button" disabled={!sel} onClick={() => { setErrorAccion(''); setModal({ tipo: 'rol', rol: sel }) }}>
                   <IconEditar size={15} /> Editar
                 </button>
               ) : null}

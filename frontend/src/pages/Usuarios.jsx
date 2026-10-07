@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, Modal, Note, PageHead, Person } from '../components/ui.jsx'
 import { usePeticion } from '../api/usePeticion.js'
 import { listarAreas } from '../api/catalogos.js'
@@ -32,6 +32,11 @@ function FormularioUsuario({ usuario, roles, areas, puedoAsignarRoles, guardando
   const [rolesSel, setRolesSel] = useState(() => (usuario?.roles ?? []).map((rol) => rol.id))
   const rolesEditables = puedeEditarRoles(puedoAsignarRoles, usuario)
 
+  // Si el catálogo de áreas llega después de abrir el formulario, se toma la primera.
+  useEffect(() => {
+    if (!areaId && areas.length) setAreaId(areas[0].id)
+  }, [areaId, areas])
+
   function alternarRol(id) {
     setRolesSel((actuales) => (actuales.includes(id) ? actuales.filter((rolId) => rolId !== id) : [...actuales, id]))
   }
@@ -59,24 +64,24 @@ function FormularioUsuario({ usuario, roles, areas, puedoAsignarRoles, guardando
       <form id="form-usuario" className="form-form" onSubmit={enviar}>
         <div className="field-row">
           <div className="field">
-            <label>Nombre completo <span className="req">*</span></label>
-            <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombres y apellidos" />
+            <label htmlFor="usuario-nombre">Nombre completo <span className="req">*</span></label>
+            <input id="usuario-nombre" type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombres y apellidos" />
           </div>
           <div className="field">
-            <label>Correo institucional <span className="req">*</span></label>
-            <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="nombre@neptuno.gov.co" />
+            <label htmlFor="usuario-correo">Correo institucional <span className="req">*</span></label>
+            <input id="usuario-correo" type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="nombre@neptuno.gov.co" />
           </div>
         </div>
         <div className="field-row">
           <div className="field">
-            <label>Área <span className="req">*</span></label>
-            <select value={areaId} onChange={(e) => setAreaId(e.target.value)}>
+            <label htmlFor="usuario-areaId">Área <span className="req">*</span></label>
+            <select id="usuario-areaId" value={areaId} onChange={(e) => setAreaId(e.target.value)}>
               {areas.map((area) => <option key={area.id} value={area.id}>{area.nombre}</option>)}
             </select>
           </div>
           <div className="field">
-            <label>Estado</label>
-            <select value={estado} onChange={(e) => setEstado(e.target.value)}>
+            <label htmlFor="usuario-estado">Estado</label>
+            <select id="usuario-estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
               <option value="ACTIVO">Activo</option>
               <option value="INACTIVO">Inactivo</option>
             </select>
@@ -84,14 +89,14 @@ function FormularioUsuario({ usuario, roles, areas, puedoAsignarRoles, guardando
         </div>
         {!esEdicion ? (
           <div className="field">
-            <label>Contraseña inicial <span className="req">*</span></label>
-            <input type="password" value={clave} onChange={(e) => setClave(e.target.value)} placeholder="Entre 10 y 72 caracteres" autoComplete="new-password" />
+            <label htmlFor="usuario-clave">Contraseña inicial <span className="req">*</span></label>
+            <input id="usuario-clave" type="password" value={clave} onChange={(e) => setClave(e.target.value)} placeholder="Entre 10 y 72 caracteres" autoComplete="new-password" />
             <span className="hint">El usuario la usará en su primer ingreso; puede cambiarla después.</span>
           </div>
         ) : null}
         <div className="field">
-          <label><IconEscudo size={13} /> Roles asignados <span className="req">*</span></label>
-          <div className="grid grid-2">
+          <label id="usuario-roles"><IconEscudo size={13} /> Roles asignados <span className="req">*</span></label>
+          <div className="grid grid-2" role="group" aria-labelledby="usuario-roles">
             {roles.map((rol) => (
               <label key={rol.id} className="switch card pad" style={{ borderRadius: 'var(--r-sm)' }}>
                 <input type="checkbox" checked={rolesSel.includes(rol.id)} disabled={!rolesEditables} onChange={() => alternarRol(rol.id)} />
@@ -190,7 +195,7 @@ function Usuarios() {
         eyebrow="Administración de usuarios y roles"
         title="Usuarios"
         sub="Crea, edita y da de baja usuarios, y asígnales uno o varios roles para determinar su nivel de acceso."
-        actions={puedeCrear ? [<button key="n" className="btn" type="button" onClick={() => { setErrorAccion(''); setModal({ modo: 'crear' }) }}><IconMas size={16} /> Nuevo usuario</button>] : []}
+        actions={puedeCrear ? [<button key="n" className="btn" type="button" disabled={!areas.datos || !roles.datos} onClick={() => { setErrorAccion(''); setModal({ modo: 'crear' }) }}><IconMas size={16} /> Nuevo usuario</button>] : []}
       />
 
       <div className="toolbar">
