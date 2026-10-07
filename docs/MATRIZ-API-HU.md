@@ -8,7 +8,7 @@ implementan, con la prueba automatizada que la verifica.
 - **Base de datos:** `auth_catalogs_db` (una base por microservicio).
 - **Ruta base:** `/api/usuarios` (nginx reparte `/api/usuarios/*` a este servicio).
 - **Documentación interactiva:** `/api/usuarios/documentacion` (Swagger UI).
-- **Pruebas:** `mvn test` → 35 pruebas de integración (`src/test/java/.../*Prueba.java`).
+- **Pruebas:** `mvn test` → 38 pruebas de integración (`src/test/java/.../*Prueba.java`).
 
 ## Historias cubiertas
 
@@ -54,7 +54,10 @@ implementan, con la prueba automatizada que la verifica.
 - **HU-009:** solo se eliminan roles sin usuarios asignados; los roles de sistema
   (Administrador) no se eliminan ni se renombran.
 - **HU-013:** cada endpoint declara el permiso que exige; los permisos viajan en el
-  JWT y se revalidan en cada solicitud contra el estado del usuario.
+  JWT y se revalidan en cada solicitud contra el estado del usuario. Si cambian
+  los roles del usuario o los permisos de uno de sus roles, los tokens de acceso
+  emitidos antes se rechazan (`usuario.permisos_actualizados_en`) y el frontend
+  los renueva con el refresco (`SeguridadSesionPrueba`).
 - **HU-016/HU-015/HU-022:** los catálogos se desactivan, no se borran, para no
   invalidar documentos históricos; un área con usuarios asignados no se desactiva.
 - **HU-024:** `radicados:radicar-recibido` se siembra únicamente en el rol Radicador

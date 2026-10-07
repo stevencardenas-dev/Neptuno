@@ -72,7 +72,7 @@ public final class CatalogoPermisos {
             new Definicion("anexos:eliminar", "Eliminar anexos", MODULO_RADICACION,
                     "Eliminar un anexo cargado por error (HU-029)."),
             new Definicion(RADICADOS_RADICAR_RECIBIDO, "Radicar origen Recibido", MODULO_RADICACION,
-                    "Registrar documentos de origen Recibido; solo lo tienen los Radicadores (HU-024)."),
+                    "Registrar documentos de origen Recibido; solo lo tienen los Radicadores."),
             new Definicion("radicados:clase", "Marcar clase Original / Copia", MODULO_RADICACION,
                     "Definir si el documento es original o copia (HU-040)."),
             new Definicion("flujo:iniciar", "Iniciar flujo", MODULO_FLUJO,

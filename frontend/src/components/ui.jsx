@@ -1,18 +1,15 @@
+import { useEffect } from 'react'
+import { iniciales } from '../util/formato.js'
 import { IconCerrar } from './Icons.jsx'
 
-/* Encabezado de vista, con la sección y las HU cubiertas */
-export function PageHead({ eyebrow, title, sub, hu = [], actions }) {
+/* Encabezado de vista */
+export function PageHead({ eyebrow, title, sub, actions }) {
   return (
     <div className="page-head">
       <div>
         {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
         <h1>{title}</h1>
         {sub ? <p className="sub">{sub}</p> : null}
-        {hu.length ? (
-          <div className="hu" title="Historias de usuario cubiertas por esta vista">
-            {hu.map((h) => <span key={h}>{h}</span>)}
-          </div>
-        ) : null}
       </div>
       {actions ? <div className="page-actions">{actions}</div> : null}
     </div>
@@ -66,6 +63,14 @@ export function Note({ children, tono = 'azul', icono }) {
 
 /* Modal genérico */
 export function Modal({ open, title, sub, onClose, children, footer, ancho }) {
+  // Escape cierra el modal, como se espera de cualquier diálogo.
+  useEffect(() => {
+    if (!open) return undefined
+    const alPresionar = (e) => { if (e.key === 'Escape') onClose?.() }
+    window.addEventListener('keydown', alPresionar)
+    return () => window.removeEventListener('keydown', alPresionar)
+  }, [open, onClose])
+
   if (!open) return null
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
@@ -102,10 +107,9 @@ export function KV({ items }) {
 
 /* Persona: avatar + nombre + detalle */
 export function Person({ nombre, detalle, tono = '' }) {
-  const iniciales = nombre.split(' ').slice(0, 2).map((p) => p[0]).join('')
   return (
     <div className="person">
-      <span className={`avatar ${tono}`}>{iniciales}</span>
+      <span className={`avatar ${tono}`}>{iniciales(nombre)}</span>
       <div>
         <strong>{nombre}</strong>
         {detalle ? <small>{detalle}</small> : null}
