@@ -22,3 +22,7 @@ __pycache__/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Herramientas locales (asistentes, lanzadores del editor)
+.freebuff/
+.claude/

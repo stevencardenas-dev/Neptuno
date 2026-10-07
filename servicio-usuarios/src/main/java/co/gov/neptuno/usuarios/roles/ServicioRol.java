@@ -4,6 +4,7 @@ import co.gov.neptuno.usuarios.auditoria.PublicadorEventos;
 import co.gov.neptuno.usuarios.comun.ErroresApi;
 import co.gov.neptuno.usuarios.comun.TipoRol;
 import co.gov.neptuno.usuarios.usuarios.RepositorioUsuario;
+import co.gov.neptuno.usuarios.usuarios.Usuario;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -167,6 +168,8 @@ public class ServicioRol {
         int antes = rol.getPermisos().size();
         rol.setPermisos(nuevos);
         roles.save(rol);
+        // HU-013: los tokens de quienes tienen este rol llevan los permisos anteriores.
+        usuarios.findByRolesId(id).forEach(Usuario::marcarPermisosActualizados);
 
         eventos.publicar("rol.permisos-asignados", "rol", rol.getId().toString(), actorId, null,
                 "Permisos del rol " + rol.getNombre() + ": " + antes + " -> " + nuevos.size()

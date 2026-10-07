@@ -137,11 +137,11 @@ public class ConfiguracionSeguridad {
     }
 
     @Bean
-    CorsConfigurationSource configuracionCors() {
+    CorsConfigurationSource configuracionCors(PropiedadesNeptuno propiedades) {
         CorsConfiguration configuracion = new CorsConfiguration();
-        configuracion.setAllowedOriginPatterns(List.of("*"));
+        configuracion.setAllowedOrigins(propiedades.getCors().getOrigenes());
         configuracion.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuracion.setAllowedHeaders(List.of("*"));
+        configuracion.setAllowedHeaders(List.of("Authorization", "Content-Type", FiltroClaveServicios.CABECERA));
         configuracion.setExposedHeaders(List.of("Location"));
         UrlBasedCorsConfigurationSource origen = new UrlBasedCorsConfigurationSource();
         origen.registerCorsConfiguration("/**", configuracion);

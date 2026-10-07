@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
   IconCandado, IconEscudo, IconInfo, IconSalir, IconTridente,
 } from '../components/Icons.jsx'
@@ -10,7 +10,7 @@ function Login() {
   const { state } = useLocation()
   const { sesion, iniciar } = useSesion()
 
-  const [correo, setCorreo] = useState('laura.restrepo@neptuno.gov.co')
+  const [correo, setCorreo] = useState('')
   const [clave, setClave] = useState('')
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -94,28 +94,11 @@ function Login() {
                 autoComplete="current-password"
               />
             </div>
-            <div className="row between">
-              <label className="switch">
-                <input type="checkbox" defaultChecked /> Mantener sesión
-              </label>
-              <a className="btn-link" href="#recuperar" onClick={(e) => e.preventDefault()}>¿Olvidaste tu contraseña?</a>
-            </div>
             <button className="btn block" type="submit" disabled={enviando}>
               <IconCandado size={17} /> {enviando ? 'Validando…' : 'Ingresar'}
             </button>
             {error ? <div className="error-message">{error}</div> : null}
           </form>
-
-          <p className="form-note">
-            <IconInfo size={15} />
-            Autenticación real contra <strong>ms-auth-catalogs</strong>: el token JWT que
-            devuelve el servicio controla el acceso a las páginas privadas (HU-001, HU-002).
-          </p>
-          <div className="divider mt-16" />
-          <p className="muted small mt-16">
-            Administrador inicial en local: <span className="code">laura.restrepo@neptuno.gov.co</span>{' '}
-            / <span className="code">Neptuno*2026</span> · <Link className="btn-link" to="/">Ver índice de mockups</Link>
-          </p>
         </div>
       </section>
     </div>
