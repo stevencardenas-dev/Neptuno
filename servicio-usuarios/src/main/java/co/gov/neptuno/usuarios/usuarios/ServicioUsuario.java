@@ -11,6 +11,7 @@ import co.gov.neptuno.usuarios.roles.RepositorioRol;
 import co.gov.neptuno.usuarios.roles.Rol;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -39,8 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class ServicioUsuario {
-
-    private static final String ROL_ADMINISTRADOR = "Administrador";
 
     private final RepositorioUsuario usuarios;
     private final RepositorioRol roles;
@@ -78,7 +77,10 @@ public class ServicioUsuario {
     /** HU-014: contexto de rol y área que otros microservicios usan para filtrar documentos. */
     @Transactional(readOnly = true)
     public DtoUsuario.ContextoAcceso contextoAcceso(UUID id) {
-        Usuario usuario = requerir(id);
+        return aContextoAcceso(requerir(id));
+    }
+
+    private DtoUsuario.ContextoAcceso aContextoAcceso(Usuario usuario) {
         List<String> permisos = permisosDe(usuario);
         return new DtoUsuario.ContextoAcceso(
                 usuario.getId(),
@@ -88,8 +90,8 @@ public class ServicioUsuario {
                 usuario.getArea().getId(),
                 usuario.getArea().getNombre(),
                 usuario.getArea().getCodigo(),
-                usuario.getRoles().stream().map(Rol::getNombre).sorted().toList(),
-                rolPrincipal(usuario),
+                usuario.nombresRoles(),
+                usuario.rolPrincipal(),
                 permisos);
     }
 
@@ -97,7 +99,7 @@ public class ServicioUsuario {
     @Transactional(readOnly = true)
     public List<DtoUsuario.ContextoAcceso> contextosAcceso(List<UUID> ids) {
         return usuarios.findByIdIn(ids).stream()
-                .map(usuario -> contextoAcceso(usuario.getId()))
+                .map(this::aContextoAcceso)
                 .toList();
     }
 
@@ -170,7 +172,7 @@ public class ServicioUsuario {
             if (peticion.estado() == EstadoUsuario.INACTIVO) {
                 validarBajaSegura(usuario.getId());
                 usuario.setEstado(EstadoUsuario.INACTIVO);
-                usuario.setEliminadoEn(java.time.Instant.now());
+                usuario.setEliminadoEn(Instant.now());
                 usuario.setEliminadoPor(actorId);
             } else {
                 usuario.setEstado(EstadoUsuario.ACTIVO);
@@ -200,7 +202,7 @@ public class ServicioUsuario {
         validarBajaSegura(usuario.getId());
 
         usuario.setEstado(EstadoUsuario.INACTIVO);
-        usuario.setEliminadoEn(java.time.Instant.now());
+        usuario.setEliminadoEn(Instant.now());
         usuario.setEliminadoPor(actorId);
         usuarios.save(usuario);
 
@@ -214,18 +216,19 @@ public class ServicioUsuario {
         Usuario usuario = requerir(id);
         Set<Rol> nuevos = resolverRoles(peticion.roles());
 
-        boolean conservaAdministrador = nuevos.stream().anyMatch(rol -> rol.getNombre().equalsIgnoreCase(ROL_ADMINISTRADOR));
-        boolean esAdministrador = usuario.getRoles().stream().anyMatch(rol -> rol.getNombre().equalsIgnoreCase(ROL_ADMINISTRADOR));
+        boolean conservaAdministrador = nuevos.stream().anyMatch(rol -> rol.getNombre().equalsIgnoreCase(Rol.ADMINISTRADOR));
+        boolean esAdministrador = usuario.getRoles().stream().anyMatch(rol -> rol.getNombre().equalsIgnoreCase(Rol.ADMINISTRADOR));
         if (esAdministrador && !conservaAdministrador
-                && usuarios.countByRolesNombreIgnoreCaseAndEstado(ROL_ADMINISTRADOR, EstadoUsuario.ACTIVO) <= 1) {
+                && usuarios.countByRolesNombreIgnoreCaseAndEstado(Rol.ADMINISTRADOR, EstadoUsuario.ACTIVO) <= 1) {
             throw new ErroresApi.Conflicto("El sistema debe conservar al menos un usuario activo con el rol Administrador.");
         }
 
-        List<String> anteriores = usuario.getRoles().stream().map(Rol::getNombre).sorted().toList();
+        List<String> anteriores = usuario.nombresRoles();
         usuario.setRoles(nuevos);
+        usuario.marcarPermisosActualizados();
         usuarios.save(usuario);
 
-        List<String> actuales = usuario.getRoles().stream().map(Rol::getNombre).sorted().toList();
+        List<String> actuales = usuario.nombresRoles();
         eventos.publicar("usuario.roles-asignados", "usuario", usuario.getId().toString(), actorId, usuario.getCorreo(),
                 "Roles de " + usuario.getNombre() + ": " + anteriores + " -> " + actuales + ".");
         return aRespuesta(usuario);
@@ -281,18 +284,10 @@ public class ServicioUsuario {
 
     private void validarBajaSegura(UUID usuarioId) {
         Usuario usuario = usuarios.findById(usuarioId).orElseThrow();
-        boolean esAdministrador = usuario.getRoles().stream().anyMatch(rol -> rol.getNombre().equalsIgnoreCase(ROL_ADMINISTRADOR));
-        if (esAdministrador && usuarios.countByRolesNombreIgnoreCaseAndEstado(ROL_ADMINISTRADOR, EstadoUsuario.ACTIVO) <= 1) {
+        boolean esAdministrador = usuario.getRoles().stream().anyMatch(rol -> rol.getNombre().equalsIgnoreCase(Rol.ADMINISTRADOR));
+        if (esAdministrador && usuarios.countByRolesNombreIgnoreCaseAndEstado(Rol.ADMINISTRADOR, EstadoUsuario.ACTIVO) <= 1) {
             throw new ErroresApi.Conflicto("No puedes dar de baja al último usuario activo con el rol Administrador.");
         }
-    }
-
-    private String rolPrincipal(Usuario usuario) {
-        return usuario.getRoles().stream()
-                .map(Rol::getNombre)
-                .sorted((a, b) -> a.equalsIgnoreCase(ROL_ADMINISTRADOR) ? -1 : b.equalsIgnoreCase(ROL_ADMINISTRADOR) ? 1 : a.compareTo(b))
-                .findFirst()
-                .orElse("Sin rol");
     }
 
     private String normalizarCorreo(String correo) {

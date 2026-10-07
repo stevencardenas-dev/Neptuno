@@ -8,7 +8,6 @@ import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Topología de mensajería hacia ms-audit-infra: exchange directo de eventos del sistema
@@ -16,7 +15,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * operando y los eventos quedan pendientes para reintento.
  */
 @Configuration
-@EnableScheduling
 @ConditionalOnProperty(prefix = "neptuno.eventos", name = "publicar", havingValue = "true", matchIfMissing = true)
 public class ConfiguracionMensajeria {
 

@@ -1,0 +1,18 @@
+# Perfil SOLO para desarrollo en tu equipo:
+#   mvn spring-boot:run -Dspring-boot.run.profiles=local
+# Estos valores son públicos (están en el repositorio): nunca uses este perfil en un
+# servidor compartido ni en producción.
+spring:
+  datasource:
+    password: ${DB_CLAVE:neptuno}
+  rabbitmq:
+    password: ${RABBIT_CLAVE:neptuno}
+
+neptuno:
+  jwt:
+    secreto: ${JWT_SECRETO:solo-desarrollo-local-neptuno-no-usar-en-produccion}
+  servicios:
+    clave-interna: ${CLAVE_SERVICIOS:solo-desarrollo-local}
+  datos-iniciales:
+    administrador-correo: ${ADMIN_CORREO:admin@neptuno.local}
+    administrador-clave: ${ADMIN_CLAVE:Neptuno*Local2026}

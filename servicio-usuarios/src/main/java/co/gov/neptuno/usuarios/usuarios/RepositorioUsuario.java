@@ -21,6 +21,8 @@ public interface RepositorioUsuario extends JpaRepository<Usuario, UUID>, JpaSpe
     /** Usuarios asignados a un rol (HU-009 / HU-010). */
     long countByRolesId(UUID rolId);
 
+    List<Usuario> findByRolesId(UUID rolId);
+
     /** Usuarios activos con un rol determinado; se usa para proteger al último administrador. */
     long countByRolesNombreIgnoreCaseAndEstado(String nombreRol, EstadoUsuario estado);
 

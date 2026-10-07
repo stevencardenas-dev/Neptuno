@@ -32,11 +32,14 @@ public class ServicioAutenticacion {
     private static final int MAX_INTENTOS = 5;
     private static final Duration BLOQUEO = Duration.ofMinutes(15);
 
+    private static final String CREDENCIALES_INVALIDAS = "El correo o la contraseña no son correctos.";
+
     private final RepositorioUsuario usuarios;
     private final ServicioUsuario servicioUsuario;
     private final ServicioTokens tokens;
     private final PasswordEncoder codificador;
     private final PublicadorEventos eventos;
+    private final String hashSenuelo;
 
     public ServicioAutenticacion(RepositorioUsuario usuarios,
                                  ServicioUsuario servicioUsuario,
@@ -48,24 +51,32 @@ public class ServicioAutenticacion {
         this.tokens = tokens;
         this.codificador = codificador;
         this.eventos = eventos;
+        // Hash de referencia para gastar el mismo tiempo cuando el correo no existe.
+        this.hashSenuelo = codificador.encode(UUID.randomUUID().toString());
     }
 
     /** HU-001: valida credenciales y entrega acceso, refresco y datos de la sesión. */
     @Transactional
     public DtoAutenticacion.RespuestaSesion iniciarSesion(DtoAutenticacion.PeticionLogin peticion, String origen) {
         String correo = peticion.correo().trim().toLowerCase(Locale.ROOT);
-        Usuario usuario = usuarios.findByCorreoIgnoreCase(correo)
-                .orElseThrow(() -> new ErroresApi.CredencialesInvalidas("El correo o la contraseña no son correctos."));
-
-        if (!usuario.estaActivo()) {
-            throw new ErroresApi.NoAutorizado("La cuenta está inactiva. Contacta al administrador del sistema.");
+        Usuario usuario = usuarios.findByCorreoIgnoreCase(correo).orElse(null);
+        if (usuario == null) {
+            // Se compara igual contra un hash señuelo: un correo inexistente no debe
+            // responder más rápido que uno real (enumeración de cuentas por tiempo).
+            codificador.matches(peticion.clave(), hashSenuelo);
+            throw new ErroresApi.CredencialesInvalidas(CREDENCIALES_INVALIDAS);
         }
+
         if (usuario.getBloqueadoHasta() != null && usuario.getBloqueadoHasta().isAfter(Instant.now())) {
             throw new ErroresApi.NoAutorizado("La cuenta está bloqueada temporalmente por intentos fallidos. Intenta más tarde.");
         }
         if (!codificador.matches(peticion.clave(), usuario.getClaveHash())) {
             registrarIntentoFallido(usuario);
-            throw new ErroresApi.CredencialesInvalidas("El correo o la contraseña no son correctos.");
+            throw new ErroresApi.CredencialesInvalidas(CREDENCIALES_INVALIDAS);
+        }
+        // El estado solo se revela a quien demostró conocer la contraseña.
+        if (!usuario.estaActivo()) {
+            throw new ErroresApi.NoAutorizado("La cuenta está inactiva. Contacta al administrador del sistema.");
         }
 
         usuario.setIntentosFallidos(0);
@@ -132,19 +143,14 @@ public class ServicioAutenticacion {
     }
 
     private DtoAutenticacion.Sesion aSesion(Usuario usuario) {
-        List<String> roles = usuario.getRoles().stream().map(rol -> rol.getNombre()).sorted().toList();
-        String rolPrincipal = roles.stream()
-                .filter(nombre -> nombre.equalsIgnoreCase("Administrador"))
-                .findFirst()
-                .orElse(roles.isEmpty() ? "Sin rol" : roles.get(0));
         return new DtoAutenticacion.Sesion(
                 usuario.getId(),
                 usuario.getNombre(),
                 usuario.getCorreo(),
                 usuario.getArea().getNombre(),
                 usuario.getArea().getCodigo(),
-                rolPrincipal,
-                roles,
+                usuario.rolPrincipal(),
+                usuario.nombresRoles(),
                 servicioUsuario.permisosDe(usuario),
                 iniciales(usuario.getNombre()),
                 usuario.getUltimoAcceso());

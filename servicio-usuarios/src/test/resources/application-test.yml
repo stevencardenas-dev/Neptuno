@@ -16,6 +16,7 @@ spring:
   rabbitmq:
     host: 127.0.0.1
     port: 5672
+    password: sin-uso-en-pruebas
 
 management:
   endpoints:
@@ -35,6 +36,7 @@ neptuno:
     publicar: false
   datos-iniciales:
     activo: true
+    administrador-nombre: Laura Restrepo
     administrador-correo: laura.restrepo@neptuno.gov.co
     administrador-clave: Neptuno*2026
 

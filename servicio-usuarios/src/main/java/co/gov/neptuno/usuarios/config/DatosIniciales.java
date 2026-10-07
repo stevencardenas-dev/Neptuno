@@ -101,7 +101,7 @@ public class DatosIniciales implements ApplicationRunner {
                 .map(CatalogoPermisos.Definicion::codigo)
                 .filter(codigo -> !codigo.equals(CatalogoPermisos.RADICADOS_RADICAR_RECIBIDO))
                 .toList();
-        sembrarRol("Administrador", "Acceso total a configuración, usuarios, roles y parámetros del sistema; "
+        sembrarRol(Rol.ADMINISTRADOR, "Acceso total a configuración, usuarios, roles y parámetros del sistema; "
                         + "la radicación de origen Recibido es exclusiva del rol Radicador (HU-024).",
                 TipoRol.SISTEMA, todos);
         sembrarRol("Radicador", "Registra y clasifica documentos, gestiona anexos y radica correspondencia.",
@@ -200,7 +200,13 @@ public class DatosIniciales implements ApplicationRunner {
     }
 
     private void sembrarAdministrador() {
-        String correo = propiedades.getDatosIniciales().getAdministradorCorreo().trim().toLowerCase(Locale.ROOT);
+        PropiedadesNeptuno.DatosIniciales datos = propiedades.getDatosIniciales();
+        if (datos.getAdministradorCorreo() == null || datos.getAdministradorCorreo().isBlank()
+                || datos.getAdministradorClave() == null || datos.getAdministradorClave().isBlank()) {
+            throw new IllegalStateException("Define ADMIN_CORREO y ADMIN_CLAVE para crear el administrador inicial "
+                    + "(o desactiva la siembra con DATOS_INICIALES=false).");
+        }
+        String correo = datos.getAdministradorCorreo().trim().toLowerCase(Locale.ROOT);
         if (usuarios.existsByCorreoIgnoreCase(correo)) {
             return;
         }
@@ -208,13 +214,13 @@ public class DatosIniciales implements ApplicationRunner {
                 .filter(candidata -> candidata.getNombre().equalsIgnoreCase("Subdirección Administrativa"))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No hay áreas sembradas para crear el usuario administrador."));
-        Rol administrador = roles.findByNombreIgnoreCase("Administrador")
+        Rol administrador = roles.findByNombreIgnoreCase(Rol.ADMINISTRADOR)
                 .orElseThrow(() -> new IllegalStateException("No existe el rol Administrador."));
 
         Usuario usuario = new Usuario();
-        usuario.setNombre("Laura Restrepo");
+        usuario.setNombre(datos.getAdministradorNombre());
         usuario.setCorreo(correo);
-        usuario.setClaveHash(codificador.encode(propiedades.getDatosIniciales().getAdministradorClave()));
+        usuario.setClaveHash(codificador.encode(datos.getAdministradorClave()));
         usuario.setArea(area);
         usuario.setEstado(EstadoUsuario.ACTIVO);
         usuario.setRoles(new LinkedHashSet<>(List.of(administrador)));

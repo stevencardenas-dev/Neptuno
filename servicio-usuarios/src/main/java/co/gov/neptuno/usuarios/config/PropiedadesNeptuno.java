@@ -1,6 +1,8 @@
 package co.gov.neptuno.usuarios.config;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -14,6 +16,7 @@ public class PropiedadesNeptuno {
     private final Servicios servicios = new Servicios();
     private final Eventos eventos = new Eventos();
     private final DatosIniciales datosIniciales = new DatosIniciales();
+    private final Cors cors = new Cors();
 
     @Getter
     @Setter
@@ -39,13 +42,27 @@ public class PropiedadesNeptuno {
         private String exchange = "neptuno.eventos";
         private String colaAuditoria = "audit.infrastructure";
         private String routingKey = "audit.evento";
+        /** Cada cuánto se envían al broker los eventos pendientes (patrón outbox). */
+        private Duration intervaloPublicacion = Duration.ofSeconds(5);
     }
 
     @Getter
     @Setter
     public static class DatosIniciales {
         private boolean activo = true;
-        private String administradorCorreo = "laura.restrepo@neptuno.gov.co";
-        private String administradorClave = "Neptuno*2026";
+        private String administradorNombre = "Administrador del sistema";
+        private String administradorCorreo;
+        private String administradorClave;
+    }
+
+    @Getter
+    @Setter
+    public static class Cors {
+        /**
+         * Orígenes con permiso para llamar al API desde el navegador. En contenedores
+         * nginx sirve la SPA y el API en el mismo origen, así que solo hace falta para
+         * desarrollo (Vite en :5173 apuntando directo al servicio).
+         */
+        private List<String> origenes = new ArrayList<>(List.of("http://localhost:5173"));
     }
 }

@@ -30,10 +30,10 @@ public class ControladorAutenticacion {
     @Operation(summary = "Iniciar sesión", description = "Valida las credenciales y entrega el token de acceso con los roles y permisos del usuario.")
     public ResponseEntity<DtoAutenticacion.RespuestaSesion> iniciarSesion(@Valid @RequestBody DtoAutenticacion.PeticionLogin peticion,
                                                                           HttpServletRequest solicitud) {
-        String origen = solicitud.getHeader("X-Forwarded-For") != null
-                ? solicitud.getHeader("X-Forwarded-For")
-                : solicitud.getRemoteAddr();
-        return ResponseEntity.ok(servicio.iniciarSesion(peticion, origen));
+        // Con server.forward-headers-strategy=native, getRemoteAddr ya refleja la IP del
+        // cliente cuando la petición llega por el proxy de confianza (nginx); leer
+        // X-Forwarded-For a mano permitía que cualquiera falsificara el origen en la bitácora.
+        return ResponseEntity.ok(servicio.iniciarSesion(peticion, solicitud.getRemoteAddr()));
     }
 
     @PostMapping("/logout")
