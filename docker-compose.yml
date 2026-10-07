@@ -1,10 +1,12 @@
 # Neptuno · orquestación local (metodología de microservicios).
 #
+#   cp .env.example .env        -> define los secretos locales (no se versiona)
 #   docker compose up --build   -> frontend en http://localhost:8080
 #                                  servicio-usuarios en http://localhost:8081
 #                                  consola de RabbitMQ en http://localhost:15672
 #
-# Los bloques de los servicios que aún no se implementan quedan comentados.
+# Los secretos no tienen valor por defecto a propósito: compose se niega a
+# arrancar si faltan en .env, en lugar de levantar con claves conocidas.
 services:
   frontend:
     build:
@@ -15,12 +17,6 @@ services:
     environment:
       USUARIOS_SERVICE_HOST: servicio-usuarios
       USUARIOS_SERVICE_PORT: "8081"
-      PAGOS_SERVICE_HOST: servicio-pagos
-      PAGOS_SERVICE_PORT: "8082"
-      INVENTARIO_SERVICE_HOST: servicio-inventario
-      INVENTARIO_SERVICE_PORT: "8083"
-      NOTIFICACIONES_SERVICE_HOST: servicio-notificaciones
-      NOTIFICACIONES_SERVICE_PORT: "8084"
     depends_on:
       servicio-usuarios:
         condition: service_healthy
@@ -36,15 +32,15 @@ services:
       - "8081:8081"
     environment:
       DB_URL: jdbc:mysql://db-usuarios:3306/auth_catalogs_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      DB_USUARIO: neptuno
-      DB_CLAVE: neptuno
-      JWT_SECRETO: ${JWT_SECRETO:-neptuno-secreto-local-2026-cambiar-en-produccion-32b}
-      CLAVE_SERVICIOS: ${CLAVE_SERVICIOS:-neptuno-clave-interna-local}
+      DB_USUARIO: ${DB_USUARIO:-neptuno}
+      DB_CLAVE: ${DB_CLAVE:?Define DB_CLAVE en .env}
+      JWT_SECRETO: ${JWT_SECRETO:?Define JWT_SECRETO en .env (mínimo 32 caracteres)}
+      CLAVE_SERVICIOS: ${CLAVE_SERVICIOS:?Define CLAVE_SERVICIOS en .env}
       RABBIT_HOST: rabbitmq
-      RABBIT_USUARIO: neptuno
-      RABBIT_CLAVE: neptuno
-      ADMIN_CORREO: ${ADMIN_CORREO:-laura.restrepo@neptuno.gov.co}
-      ADMIN_CLAVE: ${ADMIN_CLAVE:-Neptuno*2026}
+      RABBIT_USUARIO: ${RABBIT_USUARIO:-neptuno}
+      RABBIT_CLAVE: ${RABBIT_CLAVE:?Define RABBIT_CLAVE en .env}
+      ADMIN_CORREO: ${ADMIN_CORREO:?Define ADMIN_CORREO en .env}
+      ADMIN_CLAVE: ${ADMIN_CLAVE:?Define ADMIN_CLAVE en .env}
     depends_on:
       db-usuarios:
         condition: service_healthy
@@ -56,14 +52,15 @@ services:
     image: mysql:8.4
     container_name: neptuno-db-usuarios
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_CLAVE_ROOT:?Define DB_CLAVE_ROOT en .env}
       MYSQL_DATABASE: auth_catalogs_db
-      MYSQL_USER: neptuno
-      MYSQL_PASSWORD: neptuno
+      MYSQL_USER: ${DB_USUARIO:-neptuno}
+      MYSQL_PASSWORD: ${DB_CLAVE:?Define DB_CLAVE en .env}
     volumes:
       - db-usuarios-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "neptuno", "-pneptuno"]
+      # La clave se lee dentro del contenedor y no queda en la definición del servicio.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u \"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -75,8 +72,8 @@ services:
     image: rabbitmq:4-management-alpine
     container_name: neptuno-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: neptuno
-      RABBITMQ_DEFAULT_PASS: neptuno
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USUARIO:-neptuno}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_CLAVE:?Define RABBIT_CLAVE en .env}
     ports:
       - "15672:15672"
     healthcheck:
@@ -86,21 +83,9 @@ services:
       retries: 8
     restart: unless-stopped
 
-  # --- Pendientes de implementación ---
-  # servicio-pagos:
-  #   build: ./servicio-pagos
-  #   container_name: neptuno-pagos
-  #   expose: ["8082"]
-  #
-  # servicio-inventario:
-  #   build: ./servicio-inventario
-  #   container_name: neptuno-inventario
-  #   expose: ["8083"]
-  #
-  # servicio-notificaciones:
-  #   build: ./servicio-notificaciones
-  #   container_name: neptuno-notificaciones
-  #   expose: ["8084"]
+  # --- Próximos microservicios (ver docs/HOJA-DE-RUTA.md) ---
+  # ms-radicacion, ms-expediente, ms-flujos y ms-audit-infra se agregan aquí,
+  # cada uno con su propia base de datos, siguiendo el patrón de servicio-usuarios.
 
 volumes:
   db-usuarios-data:
