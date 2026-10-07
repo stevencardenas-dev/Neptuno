@@ -108,9 +108,9 @@ class RolesPrueba extends PruebaBase {
             }
         }
         assertThat(administrador).isNotNull();
-        // HU-024: el Administrador recibe 24 de los 25 permisos; la radicación de
+        // HU-024: el Administrador recibe 25 de los 26 permisos; la radicación de
         // origen Recibido queda exclusiva del rol Radicador.
-        assertThat(administrador.path("permisos").asInt()).isEqualTo(24);
+        assertThat(administrador.path("permisos").asInt()).isEqualTo(25);
         assertThat(administrador.path("usuarios").asLong()).isGreaterThanOrEqualTo(1);
 
         MvcResult usuariosDelRol = ejecutar(get("/api/usuarios/roles/"
@@ -122,7 +122,7 @@ class RolesPrueba extends PruebaBase {
         for (JsonNode grupo : json(catalogo)) {
             total += grupo.path("permisos").size();
         }
-        assertThat(total).isEqualTo(25);
+        assertThat(total).isEqualTo(26);
     }
 
     @Test

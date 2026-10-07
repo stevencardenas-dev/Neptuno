@@ -15,7 +15,9 @@ RUN npm run build
 FROM nginx:alpine
 
 ENV USUARIOS_SERVICE_HOST=servicio-usuarios \
-    USUARIOS_SERVICE_PORT=8081
+    USUARIOS_SERVICE_PORT=8081 \
+    DOCUMENTOS_SERVICE_HOST=servicio-documentos \
+    DOCUMENTOS_SERVICE_PORT=8082
 
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html

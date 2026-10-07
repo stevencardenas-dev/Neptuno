@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 // nginx (o con el dev server), que reparte cada ruta /api/<servicio>/* al
 // microservicio correspondiente. Al sumar un servicio se agrega aquí su ruta.
 const USUARIOS = process.env.USUARIOS_URL ?? 'http://localhost:8081'
+const DOCUMENTOS = process.env.DOCUMENTOS_URL ?? 'http://localhost:8082'
 
 export default defineConfig({
   plugins: [react()],
@@ -12,6 +13,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api/usuarios': { target: USUARIOS, changeOrigin: true },
+      '/api/documentos': { target: DOCUMENTOS, changeOrigin: true },
     },
   },
 })

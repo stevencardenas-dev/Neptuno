@@ -3,6 +3,7 @@
 #   cp .env.example .env        -> define los secretos locales (no se versiona)
 #   docker compose up --build   -> frontend en http://localhost:8080
 #                                  servicio-usuarios en http://localhost:8081
+#                                  servicio-documentos en http://localhost:8082
 #                                  consola de RabbitMQ en http://localhost:15672
 #
 # Los secretos no tienen valor por defecto a propósito: compose se niega a
@@ -17,8 +18,12 @@ services:
     environment:
       USUARIOS_SERVICE_HOST: servicio-usuarios
       USUARIOS_SERVICE_PORT: "8081"
+      DOCUMENTOS_SERVICE_HOST: servicio-documentos
+      DOCUMENTOS_SERVICE_PORT: "8082"
     depends_on:
       servicio-usuarios:
+        condition: service_healthy
+      servicio-documentos:
         condition: service_healthy
     restart: unless-stopped
 
@@ -83,9 +88,52 @@ services:
       retries: 8
     restart: unless-stopped
 
+  # --- ms-document-management: radicación (HU-017…HU-024, HU-039, HU-040) ---
+  servicio-documentos:
+    build:
+      context: ./servicio-documentos
+    container_name: neptuno-documentos
+    ports:
+      # Expuesto solo para pruebas locales; nginx lo consume por la red interna.
+      - "8082:8082"
+    environment:
+      DB_HOST: db-documentos
+      DB_USUARIO: ${DB_USUARIO:-neptuno}
+      DB_CLAVE: ${DB_CLAVE:?Define DB_CLAVE en .env}
+      JWT_SECRETO: ${JWT_SECRETO:?Define JWT_SECRETO en .env (mínimo 32 caracteres)}
+      USUARIOS_URL: http://servicio-usuarios:8081
+      RABBIT_HOST: rabbitmq
+      RABBIT_USUARIO: ${RABBIT_USUARIO:-neptuno}
+      RABBIT_CLAVE: ${RABBIT_CLAVE:?Define RABBIT_CLAVE en .env}
+    depends_on:
+      db-documentos:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db-documentos:
+    image: mysql:8.4
+    container_name: neptuno-db-documentos
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_CLAVE_ROOT:?Define DB_CLAVE_ROOT en .env}
+      MYSQL_DATABASE: document_management_db
+      MYSQL_USER: ${DB_USUARIO:-neptuno}
+      MYSQL_PASSWORD: ${DB_CLAVE:?Define DB_CLAVE en .env}
+    volumes:
+      - db-documentos-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u \"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
   # --- Próximos microservicios (ver docs/HOJA-DE-RUTA.md) ---
-  # ms-document-management, ms-workflow-bpm y ms-audit-infra se agregan aquí,
-  # cada uno con su propia base de datos, siguiendo el patrón de servicio-usuarios.
+  # ms-workflow-bpm y ms-audit-infra se agregan aquí, cada uno con su propia
+  # base de datos, siguiendo el patrón de servicio-usuarios.
 
 volumes:
   db-usuarios-data:
+  db-documentos-data:
