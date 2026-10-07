@@ -16,6 +16,7 @@ paleta institucional **azul, rojo y blanco**.
 Neptuno/
 ├── frontend/                 # SPA (Vite + React) servida por nginx
 ├── servicio-usuarios/        # ms-auth-catalogs: Java 21 + Spring Boot (HU-001…HU-016, HU-022)
+├── servicio-documentos/      # ms-document-management: Node 24 + Express (radicación, en curso)
 ├── docs/
 │   ├── Neptuno_Proyecto.docx                       # documento del proyecto (arquitectura y 85 HU)
 │   ├── Neptuno_Requerimientos_Backlog_Sprints.xlsx # requerimientos, backlog con microservicio y endpoint por HU, sprints
@@ -85,7 +86,36 @@ al servicio, de modo que el navegador solo habla con un origen.
 | `neptuno-frontend` | 8080 | SPA + proxy de `/api/usuarios/*` |
 | `neptuno-usuarios` | 8081 | servicio de usuarios (ms-auth-catalogs) |
 | `neptuno-db-usuarios` | interno | MySQL 8 con `auth_catalogs_db` |
+| `neptuno-documentos` | 8082 | servicio de documentos (ms-document-management) |
+| `neptuno-db-documentos` | interno | MySQL 8 con `document_management_db` |
 | `neptuno-rabbitmq` | 15672 | broker de eventos hacia ms-audit-infra (consola web) |
+
+## Servicio de documentos (`ms-document-management`)
+
+Primera parte: **radicación** (HU-017…HU-021, HU-023, HU-024, HU-039, HU-040).
+Anexos, expediente, plantillas y copias siguen pendientes. Valida el JWT que emite
+`servicio-usuarios` (mismo `JWT_SECRETO`) y consulta sus catálogos con el token del usuario.
+
+| Método y ruta (`/api/documentos`) | Permiso | HU |
+|-----------------------------------|---------|----|
+| `POST /radicados` | `radicados:crear` (+ `radicados:radicar-recibido` si el origen es RECIBIDO, + `radicados:clase` para COPIA) | HU-017, 018, 019, 024, 039, 040 |
+| `GET /radicados` (filtros: `codigo`, `q`, `desde`, `hasta`, `origen`, `tipoDocumentalId`, `areaId`, `estado`, `pagina`, `tamanio`) | `radicados:consultar` | HU-023 |
+| `GET /radicados/{id}` | `radicados:consultar` | HU-020 |
+| `PUT /radicados/{id}` (exige `version`; el código y el origen no cambian) | `radicados:editar` | HU-021, 039 |
+
+El código es `AAAAMMDD` + dígito del origen (1 Interno, 2 Externo, 3 Recibido) + consecutivo de
+4 cifras por día y origen, con la fecha en hora de Bogotá. Cada creación y edición deja un evento
+en la tabla outbox, que se publica en RabbitMQ para la bitácora.
+
+```bash
+cd servicio-documentos
+npm ci
+npm test                                   # API con repositorio en memoria
+PRUEBA_MYSQL_HOST=127.0.0.1 npm test       # añade las pruebas contra un MySQL real (crea y borra la base documentos_prueba)
+```
+
+Para correrlo en local sin Docker hacen falta las variables `JWT_SECRETO`, `DB_CLAVE` y `RABBIT_CLAVE`
+(ver `src/config.js`); la base `document_management_db` se migra sola al arrancar.
 
 ## Servicio de usuarios (`ms-auth-catalogs`)
 

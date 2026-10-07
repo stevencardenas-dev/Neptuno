@@ -63,6 +63,17 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # --- servicio-documentos ---
+    location ^~ /api/documentos/ {
+        set $upstream_documentos ${DOCUMENTOS_SERVICE_HOST}:${DOCUMENTOS_SERVICE_PORT};
+        proxy_pass http://$upstream_documentos;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     # --- Rutas de la SPA ---
     location / {
         try_files $uri $uri/ /index.html;

@@ -106,12 +106,13 @@ public class DatosIniciales implements ApplicationRunner {
                 TipoRol.SISTEMA, todos);
         sembrarRol("Radicador", "Registra y clasifica documentos, gestiona anexos y radica correspondencia.",
                 TipoRol.OPERATIVO, List.of(
-                        "radicados:crear", "radicados:editar", "anexos:cargar", "anexos:eliminar",
+                        "radicados:consultar", "radicados:crear", "radicados:editar", "anexos:cargar", "anexos:eliminar",
                         CatalogoPermisos.RADICADOS_RADICAR_RECIBIDO, "radicados:clase", "expediente:ver",
                         CatalogoPermisos.CATALOGOS_CONSULTAR));
         sembrarRol("Tesorero", "Gestiona pagos, valida cuentas de cobro y aprueba documentos financieros.",
                 TipoRol.OPERATIVO, List.of(
-                        "radicados:editar", "flujo:aprobar", "expediente:ver", CatalogoPermisos.CATALOGOS_CONSULTAR));
+                        "radicados:consultar", "radicados:editar", "flujo:aprobar", "expediente:ver",
+                        CatalogoPermisos.CATALOGOS_CONSULTAR));
         sembrarRol("Gerente", "Aprueba documentos estratégicos y aplica firma electrónica.",
                 TipoRol.APROBADOR, List.of(
                         "flujo:aprobar", "firma:aplicar", "expediente:ver", "bitacora:consultar"));

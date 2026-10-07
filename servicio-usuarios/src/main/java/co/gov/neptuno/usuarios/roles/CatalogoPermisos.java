@@ -63,6 +63,8 @@ public final class CatalogoPermisos {
                     "Consultar áreas, tipos documentales y entidades (HU-015, HU-016, HU-022)."),
             new Definicion(CATALOGOS_ADMINISTRAR, "Administrar catálogos maestros", MODULO_CATALOGOS,
                     "Crear, editar y desactivar áreas, tipos documentales y entidades (HU-015, HU-016, HU-022)."),
+            new Definicion("radicados:consultar", "Consultar radicados", MODULO_RADICACION,
+                    "Ver el detalle y el listado de radicados con sus filtros (HU-020, HU-023)."),
             new Definicion("radicados:crear", "Registrar radicados", MODULO_RADICACION,
                     "Registrar documentos y asignarles su código de radicado (HU-017)."),
             new Definicion("radicados:editar", "Editar metadatos de radicado", MODULO_RADICACION,

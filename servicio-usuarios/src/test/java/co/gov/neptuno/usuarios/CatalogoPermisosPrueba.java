@@ -41,7 +41,7 @@ class CatalogoPermisosPrueba {
     @Test
     @DisplayName("HU-011: cada permiso tiene módulo y descripción")
     void cadaPermisoEstaDocumentado() {
-        assertThat(CatalogoPermisos.definiciones()).hasSize(25);
+        assertThat(CatalogoPermisos.definiciones()).hasSize(26);
         assertThat(CatalogoPermisos.definiciones()).allSatisfy(definicion -> {
             assertThat(definicion.nombre()).isNotBlank();
             assertThat(definicion.modulo()).isNotBlank();

@@ -14,7 +14,8 @@ usuario) y las funcionalidades nuevas que se proponen.
 | Microservicio | Estado | HU cubiertas |
 |---------------|--------|--------------|
 | `servicio-usuarios` (ms-auth-catalogs) | Implementado | HU-001…HU-016, HU-022 |
-| Frontend | Login, panel, usuarios, roles, parámetros | Las mismas |
+| `servicio-documentos` (ms-document-management) | En curso: radicación (crear, consultar, listar, editar) | HU-017…HU-021, HU-023, HU-024, HU-039, HU-040 |
+| Frontend | Login, panel, usuarios, roles, parámetros (aún sin pantallas de radicación) | Las de usuarios |
 
 ## 1. Backlog pendiente, agrupado por microservicio
 
@@ -30,6 +31,9 @@ RabbitMQ (exchange `neptuno.eventos`) con el patrón outbox que ya usa
 interna `/api/usuarios/interno/**` (HU-014).
 
 ### ms-document-management — Radicación, anexos, expediente y plantillas (Node.js · Express)
+
+Implementado en `servicio-documentos/`: HU-017…HU-021, HU-023, HU-024, HU-039 y HU-040. Falta todo
+lo que depende de MinIO y del expediente (anexos, carpetas, plantillas y copias).
 
 | HU | Funcionalidad |
 |----|---------------|
