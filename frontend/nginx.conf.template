@@ -56,7 +56,10 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # nginx es la entrada del sistema: sobrescribe la cabecera con la IP real en
+        # vez de anexarla ($proxy_add_x_forwarded_for), o el cliente podría inventar
+        # su IP de origen en la bitácora.
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
