@@ -105,7 +105,7 @@ function FormularioUsuario({ usuario, roles, areas, puedoAsignarRoles, guardando
           <span className="hint">
             {rolesEditables
               ? 'Un usuario puede tener uno o varios roles, pero siempre al menos uno.'
-              : 'Solo quien tiene el permiso usuarios:asignar-roles puede cambiar los roles (HU-012).'}
+              : 'Solo quien tiene el permiso usuarios:asignar-roles puede cambiar los roles.'}
           </span>
         </div>
         {error ? <div className="error-message">{error}</div> : null}
@@ -190,7 +190,6 @@ function Usuarios() {
         eyebrow="Administración de usuarios y roles"
         title="Usuarios"
         sub="Crea, edita y da de baja usuarios, y asígnales uno o varios roles para determinar su nivel de acceso."
-        hu={['HU-003', 'HU-004', 'HU-005', 'HU-006', 'HU-012']}
         actions={puedeCrear ? [<button key="n" className="btn" type="button" onClick={() => { setErrorAccion(''); setModal({ modo: 'crear' }) }}><IconMas size={16} /> Nuevo usuario</button>] : []}
       />
 
@@ -297,8 +296,8 @@ function Usuarios() {
 
       <Note icono={<IconInfo size={17} />}>
         Cada acción de esta vista viaja al servicio de usuarios con el token de la sesión: el
-        servicio valida los permisos del rol en cada solicitud (<strong>HU-013</strong>) y la baja
-        lógica revoca el acceso sin perder el historial en la bitácora (<strong>HU-014</strong>).
+        servicio valida los permisos del rol en cada solicitud y la baja
+        lógica revoca el acceso sin perder el historial en la bitácora.
       </Note>
 
       <Note icono={<IconInfo size={17} />}>
