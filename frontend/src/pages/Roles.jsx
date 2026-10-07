@@ -55,7 +55,7 @@ function FormularioRol({ rol, tipos, guardando, error, onCerrar, onGuardar }) {
         </div>
         <Note icono={<IconInfo size={17} />}>
           Los permisos se asignan después con <strong>Editar permisos</strong>: el servicio los
-          valida en cada solicitud (HU-011, HU-013).
+          valida en cada solicitud.
         </Note>
         {error ? <div className="error-message mt-16">{error}</div> : null}
       </form>
@@ -143,7 +143,6 @@ function Roles() {
         eyebrow="Administración de usuarios y roles"
         title="Roles y permisos"
         sub="Agrupa permisos por perfil, asígnalos a los usuarios y consulta quién puede hacer qué."
-        hu={['HU-007', 'HU-008', 'HU-009', 'HU-010', 'HU-011']}
         actions={puedeCrear ? [<button key="n" className="btn" type="button" onClick={() => { setErrorAccion(''); setModal({ tipo: 'rol' }) }}><IconMas size={16} /> Nuevo rol</button>] : []}
       />
 
@@ -244,7 +243,7 @@ function Roles() {
                 </button>
               ) : null}
             </div>
-            {sel?.usuarios > 0 ? <p className="hint mt-8">Solo se puede eliminar un rol sin usuarios asignados (HU-009).</p> : null}
+            {sel?.usuarios > 0 ? <p className="hint mt-8">Solo se puede eliminar un rol sin usuarios asignados.</p> : null}
             {sel?.tipo === 'SISTEMA' ? <p className="hint mt-8">Los roles de sistema no se renombran ni se eliminan.</p> : null}
           </Card>
 

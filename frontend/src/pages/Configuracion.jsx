@@ -6,20 +6,16 @@ import {
   desactivarTipoDocumental, editarArea, editarEntidad, editarTipoDocumental,
   listarAreas, listarEntidades, listarTiposDocumentales,
 } from '../api/catalogos.js'
-import { respaldos } from '../data/mock.js'
 import { useSesion } from '../sesion/SesionProvider.jsx'
 import { ORIGENES, etiquetaEstadoCatalogo, etiquetaOrigen } from '../util/formato.js'
 import {
-  IconArchivo, IconCalendario, IconCheck, IconConfig, IconEditar, IconGlobo,
-  IconInfo, IconMas, IconPapelera, IconDescargar, IconGuardar, IconEscudo,
-  IconSubir, IconReloj,
+  IconArchivo, IconCheck, IconConfig, IconEditar, IconEscudo, IconGlobo, IconMas, IconPapelera,
 } from '../components/Icons.jsx'
 
 const tabs = [
   { id: 'tipos', label: 'Tipos documentales' },
   { id: 'areas', label: 'Áreas' },
   { id: 'entidades', label: 'Entidades' },
-  { id: 'respaldos', label: 'Copias de seguridad' },
 ]
 
 const estadoBadge = { ACTIVO: 'verde', INACTIVO: 'gris' }
@@ -287,9 +283,8 @@ function Configuracion() {
       <PageHead
         eyebrow="Configuración y parámetros del sistema"
         title="Parámetros"
-        sub="Administra los catálogos que estructuran la radicación: tipos documentales, áreas, entidades y copias de seguridad."
-        hu={['HU-015', 'HU-016', 'HU-022', 'HU-081', 'HU-082']}
-        actions={administrable && tab !== 'respaldos' ? [
+        sub="Administra los catálogos que estructuran la radicación: tipos documentales, áreas y entidades."
+        actions={administrable ? [
           <button key="n" className="btn" type="button" onClick={() => abrir(tab)}><IconMas size={16} /> Agregar</button>,
         ] : []}
       />
@@ -424,63 +419,6 @@ function Configuracion() {
           </Card>
         ) : null}
 
-        {tab === 'respaldos' ? (
-          <div className="grid grid-side">
-            <Card title="Historial de copias de seguridad" sub="Documentos y bitácora" icono={<IconArchivo size={17} />} tight>
-              <div className="table-wrap">
-                <table className="data">
-                  <thead><tr><th>Identificador</th><th>Tipo</th><th>Tamaño</th><th>Contenido</th><th>Estado</th><th style={{ textAlign: 'right' }}>Acciones</th></tr></thead>
-                  <tbody>
-                    {respaldos.map((b) => (
-                      <tr key={b.id}>
-                        <td><strong>{b.id}</strong><span className="cell-sub">{b.fecha}</span></td>
-                        <td><span className="badge gris">{b.tipo}</span></td>
-                        <td>{b.tamano}</td>
-                        <td className="muted small">{b.documentos} documentos · {b.bitacora}</td>
-                        <td><span className={`badge ${b.estado === 'Completado' ? 'verde' : 'ambar'}`}><span className={`dot ${b.estado === 'Completado' ? 'verde' : 'ambar'}`} /> {b.estado}</span></td>
-                        <td><div className="td-actions">
-                          <button className="btn ghost sm" type="button" title="Restaurar"><IconSubir size={15} /></button>
-                          <button className="btn ghost sm" type="button" title="Descargar"><IconDescargar size={15} /></button>
-                        </div></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Note icono={<IconInfo size={17} />}>
-                Vista de prototipo: la copia de seguridad y la restauración (HU-081, HU-082) todavía
-                no tienen servicio; el contenido es de ejemplo.
-              </Note>
-            </Card>
-
-            <div className="stack">
-              <Card title="Programación" sub="Copias automáticas" icono={<IconCalendario size={17} />}>
-                <div className="field">
-                  <label>Frecuencia</label>
-                  <select defaultValue="Diaria"><option>Diaria</option><option>Cada 12 horas</option><option>Semanal</option></select>
-                </div>
-                <div className="field-row mt-16">
-                  <div className="field"><label>Hora</label><input type="text" defaultValue="02:00" /></div>
-                  <div className="field"><label>Retención</label><input type="text" defaultValue="30 días" /></div>
-                </div>
-                <label className="switch mt-16"><input type="checkbox" defaultChecked /> Incluir bitácora de auditoría</label>
-                <button className="btn block mt-16" type="button"><IconGuardar size={16} /> Guardar programación</button>
-              </Card>
-
-              <Card title="Restaurar" sub="Recupera documentos y bitácora" icono={<IconSubir size={17} />}>
-                <Note icono={<IconInfo size={17} />}>
-                  La restauración reemplaza el contenido actual por el de la copia seleccionada.
-                  Se registra en la bitácora y requiere confirmación.
-                </Note>
-                <div className="field mt-16">
-                  <label>Copia a restaurar</label>
-                  <select>{respaldos.map((b) => <option key={b.id}>{b.id} · {b.fecha}</option>)}</select>
-                </div>
-                <button className="btn danger block mt-16" type="button"><IconReloj size={16} /> Restaurar copia</button>
-              </Card>
-            </div>
-          </div>
-        ) : null}
       </div>
 
       <Note icono={<IconConfig size={17} />}>
