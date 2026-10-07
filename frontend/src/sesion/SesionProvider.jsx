@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import * as autenticacion from '../api/autenticacion.js'
 import { guardarSesion, leerSesion, limpiarSesion } from '../api/almacenSesion.js'
-import { EVENTO_SESION_PERDIDA } from '../api/cliente.js'
+import { EVENTO_SESION_PERDIDA, EVENTO_SESION_RENOVADA } from '../api/cliente.js'
 
 /**
  * Sesión del usuario contra ms-auth-catalogs (HU-001, HU-002).
@@ -15,12 +15,18 @@ const ContextoSesion = createContext(null)
 export function SesionProvider({ children }) {
   const [guardada, setGuardada] = useState(() => leerSesion())
 
-  // Cuando el cliente detecta un 401 (token vencido o revocado) la sesión se
-  // olvida y la guarda de rutas devuelve al login.
+  // Cuando el cliente no logra renovar un token (vencido o revocado) la sesión se
+  // olvida y la guarda de rutas devuelve al login. Si la renueva, se recargan los
+  // permisos para que el menú y las guardas reflejen los vigentes.
   useEffect(() => {
     const olvidar = () => setGuardada(null)
+    const recargar = () => setGuardada(leerSesion())
     window.addEventListener(EVENTO_SESION_PERDIDA, olvidar)
-    return () => window.removeEventListener(EVENTO_SESION_PERDIDA, olvidar)
+    window.addEventListener(EVENTO_SESION_RENOVADA, recargar)
+    return () => {
+      window.removeEventListener(EVENTO_SESION_PERDIDA, olvidar)
+      window.removeEventListener(EVENTO_SESION_RENOVADA, recargar)
+    }
   }, [])
 
   const valor = useMemo(() => {
@@ -37,7 +43,8 @@ export function SesionProvider({ children }) {
       },
       cerrar: async () => {
         try {
-          const refresco = guardada?.refresco?.token
+          // Se lee del almacenamiento porque el cliente pudo haber rotado el refresco.
+          const refresco = leerSesion()?.refresco?.token
           if (refresco) await autenticacion.cerrarSesion(refresco)
         } catch {
           // Aunque el servicio no responda, la sesión local se cierra igual.
