@@ -17,7 +17,10 @@ Neptuno/
 ├── frontend/                 # SPA (Vite + React) servida por nginx
 ├── servicio-usuarios/        # ms-auth-catalogs: Java 21 + Spring Boot (HU-001…HU-016, HU-022)
 ├── docs/
-│   ├── MATRIZ-API-HU.md      # trazabilidad endpoint ↔ historia de usuario
+│   ├── Neptuno_Proyecto.docx                       # documento del proyecto (arquitectura y 85 HU)
+│   ├── Neptuno_Requerimientos_Backlog_Sprints.xlsx # requerimientos, backlog con microservicio y endpoint por HU, sprints
+│   ├── esquema-base-datos.sql                      # tablas de las HU pendientes (3 bases MySQL)
+│   ├── MATRIZ-API-HU.md      # trazabilidad endpoint ↔ historia de usuario (servicio implementado)
 │   └── HOJA-DE-RUTA.md       # próximos microservicios y funcionalidades propuestas
 ├── .github/workflows/ci.yml  # pruebas del backend y build del frontend en cada PR
 ├── docker-compose.yml        # frontend + servicio + MySQL + RabbitMQ
@@ -52,6 +55,19 @@ npm run dev          # http://localhost:5173 (proxy /api/usuarios → localhost:
 
 El servicio de usuarios debe estar arriba (ver abajo). Para apuntar el proxy a
 otra dirección: `USUARIOS_URL=http://host:puerto npm run dev`.
+
+### Pruebas de punta a punta (Playwright)
+
+```bash
+cd frontend
+npm run test:e2e        # 13 pruebas en escritorio y celular, con el Chrome instalado
+```
+
+Playwright levanta su propio servicio (puerto 8082, perfil `test` con H2 en
+memoria) y su propio frontend (puerto 5174), así que no interfiere con los
+servidores de desarrollo. Cubren login, panel, permisos por rol, renovación del
+token, alta de usuarios y áreas, uso con teclado y que nada desborde en el
+celular. El reporte queda en `frontend/playwright-report/`.
 
 ## Contenedores
 
