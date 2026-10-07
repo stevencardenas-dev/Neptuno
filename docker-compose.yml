@@ -84,7 +84,7 @@ services:
     restart: unless-stopped
 
   # --- Próximos microservicios (ver docs/HOJA-DE-RUTA.md) ---
-  # ms-radicacion, ms-expediente, ms-flujos y ms-audit-infra se agregan aquí,
+  # ms-document-management, ms-workflow-bpm y ms-audit-infra se agregan aquí,
   # cada uno con su propia base de datos, siguiendo el patrón de servicio-usuarios.
 
 volumes:

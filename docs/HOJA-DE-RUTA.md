@@ -18,54 +18,48 @@ usuario) y las funcionalidades nuevas que se proponen.
 
 ## 1. Backlog pendiente, agrupado por microservicio
 
+La distribución sigue `docs/Neptuno_Proyecto.docx` (4 microservicios, 85 HU). El
+detalle por historia —microservicio, endpoint estimado, permiso y estado— está en
+la hoja **Product Backlog** de `docs/Neptuno_Requerimientos_Backlog_Sprints.xlsx`,
+y las tablas que necesitan las historias pendientes, en
+[`docs/esquema-base-datos.sql`](esquema-base-datos.sql).
+
 Cada servicio tiene su propia base de datos, publica eventos de bitácora en
 RabbitMQ (exchange `neptuno.eventos`) con el patrón outbox que ya usa
 `servicio-usuarios`, y consulta el contexto de acceso del usuario por la API
 interna `/api/usuarios/interno/**` (HU-014).
 
-### ms-radicacion — Radicación y anexos
+### ms-document-management — Radicación, anexos, expediente y plantillas (Node.js · Express)
 
 | HU | Funcionalidad |
 |----|---------------|
-| HU-017 | Código de radicado único e inmutable `AAAAMMDD + X + CONSECUTIVO` (consecutivo por día y origen con bloqueo optimista o secuencia en BD) |
+| HU-017 | Código de radicado único e inmutable `AAAAMMDD + X + CONSECUTIVO` (consecutivo por día y origen) |
 | HU-018, HU-024 | Clasificación por origen; solo el rol Radicador registra Recibido (`radicados:radicar-recibido`) |
 | HU-019, HU-021, HU-039, HU-040 | Metadatos obligatorios y extendidos, clase Original/Copia; edición sin tocar el código |
 | HU-020, HU-023 | Detalle y listado filtrable de radicados |
-| HU-025…HU-029 | Anexos múltiples (PDF, PNG, JPG, DOCX, XLSX) en almacenamiento de objetos (MinIO/S3), descarga y eliminación con constancia |
+| HU-025…HU-029 | Anexos múltiples (PDF, PNG, JPG, DOCX, XLSX) en MinIO, descarga y eliminación con constancia |
+| HU-030…HU-034 | Carpetas por área, subcarpetas, árbol del expediente, visibilidad por rol y documentos No radicables |
+| HU-035…HU-038 | Plantillas DOCX con variables, vínculo a orígenes Interno/Externo, render y PDF |
 | HU-041, HU-042 | Envío de copias a destinatarios y bandeja de copias recibidas |
 
-### ms-expediente — Archivo institucional
-
-| HU | Funcionalidad |
-|----|---------------|
-| HU-030…HU-032 | Carpetas por área, subcarpetas temáticas y vista de árbol |
-| HU-033, HU-014 | Visibilidad de carpetas y documentos según rol y área |
-| HU-034 | Documentos No radicables en subcarpetas con consecutivo propio |
-
-### ms-flujos — Diseñador y motor de workflow
+### ms-workflow-bpm — Diseñador de flujos, bandeja y firma (Node.js · NestJS)
 
 | HU | Funcionalidad |
 |----|---------------|
 | HU-048…HU-061 | CRUD de flujos, lienzo de estados y transiciones, validación y publicación |
-| HU-069, HU-059, HU-060 | Responsable por nodo: persona, grupo, rol o área |
-| HU-072, HU-073, HU-074 | Tiempos máximos por trámite y por nodo; semáforo verde/amarillo/rojo |
-| HU-078…HU-080 | Versionado: los documentos en tránsito conservan su versión |
-| HU-062…HU-068, HU-070, HU-071 | Bandeja de tareas: tomar, aprobar, rechazar y devolver con observación; asignación exclusiva |
-| HU-075, HU-076 | Estados que exigen firma y aplicación de firma electrónica |
+| HU-062…HU-068 | Bandeja de tareas: iniciar trámite, aprobar, cancelar y devolver con observación |
+| HU-069…HU-074 | Responsable por paso (usuario, grupo o rol), toma exclusiva, tenencia única del Original, SLA y semáforo |
+| HU-075…HU-077 | Estados que exigen firma, firma electrónica y consulta de firmas |
+| HU-078…HU-080 | Versionado: los trámites en curso conservan su versión |
+| HU-083 | Consulta y aprobación desde el celular |
 
-### ms-plantillas — Generación de documentos
-
-| HU | Funcionalidad |
-|----|---------------|
-| HU-035…HU-038 | Plantillas DOCX con variables, vínculo a orígenes Interno/Externo, render y conversión a PDF |
-
-### ms-audit-infra — Bitácora, respaldos y rendimiento
+### ms-audit-infra — Bitácora y requerimientos no funcionales (Go)
 
 | HU | Funcionalidad |
 |----|---------------|
-| HU-043…HU-047, HU-077 | Consumidor de la cola `audit.infrastructure`; bitácora inmutable (append-only, encadenada por hash), filtros y firmas |
+| HU-043…HU-047 | Consumidor de la cola `audit.infrastructure`; bitácora inalterable encadenada por hash, historial por documento y filtros |
 | HU-081, HU-082 | Copias de seguridad programadas y restauración |
-| HU-084, HU-085 | Métricas (Micrometer + Prometheus) y pruebas de carga (k6/Gatling) con el límite de 2 s |
+| HU-084, HU-085 | Métricas de tiempos de respuesta y pruebas de carga con el límite de 2 s |
 
 ## 2. Funcionalidades nuevas propuestas
 
@@ -107,6 +101,6 @@ Fuera del backlog original, priorizadas por valor frente a esfuerzo.
 17. **Pruebas de integración contra MySQL real** con Testcontainers (hoy se usa
     H2, que no detecta diferencias de dialecto).
 18. **Dashboard del panel con indicadores reales** del negocio cuando existan
-    ms-radicacion y ms-flujos (radicados por área, tareas vencidas, tiempos).
+    ms-document-management y ms-workflow-bpm (radicados por área, tareas vencidas, tiempos).
 19. **Retención documental (TRD)**: tiempos de conservación por tipo documental y
     disposición final, requisito habitual en entidades públicas colombianas.
