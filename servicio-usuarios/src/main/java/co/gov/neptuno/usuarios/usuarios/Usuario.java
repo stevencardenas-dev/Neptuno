@@ -20,7 +20,9 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import lombok.Getter;
@@ -90,6 +92,13 @@ public class Usuario {
     @Column(name = "eliminado_por")
     private UUID eliminadoPor;
 
+    /**
+     * HU-013: momento del último cambio de roles o permisos. Los tokens de acceso
+     * emitidos antes de esta marca ya no reflejan los permisos vigentes.
+     */
+    @Column(name = "permisos_actualizados_en")
+    private Instant permisosActualizadosEn;
+
     @PrePersist
     void alCrear() {
         this.creadoEn = Instant.now();
@@ -102,5 +111,27 @@ public class Usuario {
 
     public boolean estaActivo() {
         return estado == EstadoUsuario.ACTIVO;
+    }
+
+    /** Nombres de los roles en orden alfabético. */
+    public List<String> nombresRoles() {
+        return roles.stream().map(Rol::getNombre).sorted().toList();
+    }
+
+    /** Rol que se muestra en la sesión: Administrador si lo tiene; si no, el primero alfabéticamente. */
+    public String rolPrincipal() {
+        List<String> nombres = nombresRoles();
+        return nombres.stream()
+                .filter(nombre -> nombre.equalsIgnoreCase(Rol.ADMINISTRADOR))
+                .findFirst()
+                .orElse(nombres.isEmpty() ? "Sin rol" : nombres.get(0));
+    }
+
+    /**
+     * Invalida los tokens de acceso vigentes porque sus permisos cambiaron (HU-013).
+     * Se trunca a segundos porque el {@code iat} del JWT tiene esa precisión.
+     */
+    public void marcarPermisosActualizados() {
+        this.permisosActualizadosEn = Instant.now().truncatedTo(ChronoUnit.SECONDS);
     }
 }

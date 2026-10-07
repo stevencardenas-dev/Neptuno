@@ -16,9 +16,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Publica los eventos de dominio en RabbitMQ para que ms-audit-infra construya la
- * bitácora inalterable (HU-043). Cada evento queda además en {@code evento_auditoria}
- * con su estado de publicación, de modo que el servicio siga siendo demostrable sin
- * broker y los pendientes se reintenten más tarde.
+ * bitácora inalterable (HU-043), con el patrón <em>transactional outbox</em>:
+ *
+ * <ol>
+ *   <li>{@link #publicar} solo guarda el evento en {@code evento_auditoria}, dentro de
+ *       la misma transacción que el cambio de negocio. Si la transacción se revierte,
+ *       el evento desaparece con ella: nunca se anuncia un cambio que no ocurrió.</li>
+ *   <li>{@link #enviarPendientes} los envía al broker cada pocos segundos y los marca
+ *       como publicados. La solicitud HTTP no espera al broker, así que una caída de
+ *       RabbitMQ no vuelve lentas las operaciones del usuario.</li>
+ * </ol>
  */
 @Service
 public class PublicadorEventos {
@@ -59,20 +66,12 @@ public class PublicadorEventos {
         evento.setOcurridoEn(Instant.now());
         evento.setEstadoPublicacion(EstadoPublicacion.PENDIENTE);
         repositorio.save(evento);
-
-        if (!propiedades.getEventos().isPublicar()) {
-            return;
-        }
-        if (enviar(evento)) {
-            evento.setEstadoPublicacion(EstadoPublicacion.PUBLICADO);
-            repositorio.save(evento);
-        }
     }
 
-    /** Reintenta los eventos que quedaron pendientes cuando el broker no estaba disponible. */
-    @Scheduled(fixedDelayString = "PT30S")
+    /** Envía al broker los eventos confirmados; si el broker no responde, se reintenta en el siguiente ciclo. */
+    @Scheduled(fixedDelayString = "${neptuno.eventos.intervalo-publicacion:PT5S}")
     @Transactional
-    public void reintentarPendientes() {
+    public void enviarPendientes() {
         if (!propiedades.getEventos().isPublicar()) {
             return;
         }

@@ -33,6 +33,9 @@ import lombok.Setter;
 @NoArgsConstructor
 public class Rol {
 
+    /** Rol con acceso total; el sistema siempre conserva al menos un usuario activo con él. */
+    public static final String ADMINISTRADOR = "Administrador";
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

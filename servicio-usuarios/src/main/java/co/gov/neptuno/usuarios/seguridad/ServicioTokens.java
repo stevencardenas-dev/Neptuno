@@ -2,7 +2,6 @@ package co.gov.neptuno.usuarios.seguridad;
 
 import co.gov.neptuno.usuarios.comun.ErroresApi;
 import co.gov.neptuno.usuarios.config.PropiedadesNeptuno;
-import co.gov.neptuno.usuarios.roles.Rol;
 import co.gov.neptuno.usuarios.usuarios.Usuario;
 import java.time.Duration;
 import java.time.Instant;
@@ -65,12 +64,6 @@ public class ServicioTokens {
     private Token emitir(Usuario usuario, List<String> permisos, TipoToken tipo, Duration vigencia) {
         Instant ahora = Instant.now();
         Instant expira = ahora.plus(vigencia);
-        List<String> roles = usuario.getRoles().stream().map(Rol::getNombre).sorted().toList();
-        String rolPrincipal = roles.stream()
-                .filter(nombre -> nombre.equalsIgnoreCase("Administrador"))
-                .findFirst()
-                .orElse(roles.isEmpty() ? "Sin rol" : roles.get(0));
-
         JwtClaimsSet.Builder claims = JwtClaimsSet.builder()
                 .issuer(propiedades.getJwt().getEmisor())
                 .issuedAt(ahora)
@@ -82,8 +75,8 @@ public class ServicioTokens {
                 .claim("nombre", usuario.getNombre())
                 .claim("areaId", usuario.getArea().getId().toString())
                 .claim("area", usuario.getArea().getNombre())
-                .claim("roles", roles)
-                .claim("rolPrincipal", rolPrincipal);
+                .claim("roles", usuario.nombresRoles())
+                .claim("rolPrincipal", usuario.rolPrincipal());
         if (tipo == TipoToken.ACCESO) {
             claims.claim("permisos", permisos);
         }
