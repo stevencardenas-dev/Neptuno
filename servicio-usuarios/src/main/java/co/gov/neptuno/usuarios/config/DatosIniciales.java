@@ -102,7 +102,7 @@ public class DatosIniciales implements ApplicationRunner {
                 .filter(codigo -> !codigo.equals(CatalogoPermisos.RADICADOS_RADICAR_RECIBIDO))
                 .toList();
         sembrarRol(Rol.ADMINISTRADOR, "Acceso total a configuración, usuarios, roles y parámetros del sistema; "
-                        + "la radicación de origen Recibido es exclusiva del rol Radicador (HU-024).",
+                        + "la radicación de origen Recibido es exclusiva del rol Radicador.",
                 TipoRol.SISTEMA, todos);
         sembrarRol("Radicador", "Registra y clasifica documentos, gestiona anexos y radica correspondencia.",
                 TipoRol.OPERATIVO, List.of(
