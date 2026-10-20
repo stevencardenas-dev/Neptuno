@@ -77,6 +77,8 @@ public final class CatalogoPermisos {
                     "Registrar documentos de origen Recibido; solo lo tienen los Radicadores."),
             new Definicion("radicados:clase", "Marcar clase Original / Copia", MODULO_RADICACION,
                     "Definir si el documento es original o copia (HU-040)."),
+            new Definicion("flujos:administrar", "Administrar flujos", MODULO_FLUJO,
+                    "Crear y mantener los flujos de trabajo: sus pasos, sus decisiones y su publicación."),
             new Definicion("flujo:iniciar", "Iniciar flujo", MODULO_FLUJO,
                     "Enviar un radicado a un flujo de trabajo activo (HU-062)."),
             new Definicion("flujo:aprobar", "Aprobar documento", MODULO_FLUJO,
