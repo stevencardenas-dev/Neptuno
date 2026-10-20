@@ -111,6 +111,62 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Modo noche: solo redefine los tokens; el resto del CSS ya los consume.
+   Se activa con data-tema="oscuro" en <html> (ver util/tema.js). */
+:root[data-tema='oscuro'] {
+  color-scheme: dark;
+
+  --fondo: #0f1318;
+  --papel: #171c23;
+  --papel-2: #1c222a;
+  --papel-3: #232a33;
+
+  --borde: #2a323c;
+  --borde-2: #363f4b;
+  --borde-fuerte: #4d5866;
+
+  --texto: #e6e9ed;
+  --texto-2: #b0b8c2;
+  --texto-3: #8a94a0;
+
+  --azul: #4f8ee0;
+  --azul-2: #7aaaf0;
+  --azul-oscuro: #3a76c4;
+  --azul-tenue: #172a45;
+  --azul-borde: #2c4a75;
+
+  --rojo: #f0645a;
+  --rojo-2: #f58077;
+  --rojo-oscuro: #d94a40;
+  --rojo-tenue: #3a1b19;
+  --rojo-borde: #6b2f2b;
+
+  --exito: #4cc489;
+  --exito-tenue: #14291e;
+  --aviso: #e0b04a;
+  --aviso-tenue: #2c2410;
+  --info: #5eb0e6;
+  --info-tenue: #12293a;
+
+  --sombra-flotante: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --anillo: rgba(79, 142, 224, 0.35);
+}
+
+.tema-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-right: 8px;
+  border: 1px solid var(--borde-2);
+  border-radius: var(--r-sm);
+  background: var(--papel);
+  color: var(--texto-2);
+  cursor: pointer;
+}
+.tema-toggle:hover { background: var(--papel-3); color: var(--texto); }
+
+
 /* ---------------- Base ---------------- */
 
 * { box-sizing: border-box; }
@@ -540,10 +596,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .badge.solid { border-color: transparent; }
 .badge.azul { background: var(--azul-tenue); border-color: var(--azul-borde); color: var(--azul); }
 .badge.rojo { background: var(--rojo-tenue); border-color: var(--rojo-borde); color: var(--rojo); }
-.badge.verde { background: var(--exito-tenue); border-color: #bcdcc9; color: var(--exito); }
-.badge.ambar { background: var(--aviso-tenue); border-color: #e8d5a4; color: var(--aviso); }
+.badge.verde { background: var(--exito-tenue); border-color: color-mix(in srgb, currentColor 30%, transparent); color: var(--exito); }
+.badge.ambar { background: var(--aviso-tenue); border-color: color-mix(in srgb, currentColor 30%, transparent); color: var(--aviso); }
 /* El violeta no pertenece a la paleta del proyecto: se trata como informativo. */
-.badge.violeta { background: var(--info-tenue); border-color: #bcd8ea; color: var(--info); }
+.badge.violeta { background: var(--info-tenue); border-color: color-mix(in srgb, currentColor 30%, transparent); color: var(--info); }
 .badge.gris { background: var(--papel-3); color: var(--texto-2); }
 .badge.blanco { background: var(--papel); color: var(--texto); border-color: var(--borde-2); }
 

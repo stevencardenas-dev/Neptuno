@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { alternarTema, temaActual } from '../util/tema.js'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useSesion } from '../sesion/SesionProvider.jsx'
 import {
@@ -57,6 +59,7 @@ function Layout() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { sesion, cerrar, puede } = useSesion()
+  const [tema, setTema] = useState(temaActual)
   const seccion = Object.entries(secciones)
     .filter(([ruta]) => pathname === ruta || pathname.startsWith(`${ruta}/`))
     .sort(([uno], [otro]) => otro.length - uno.length)[0]?.[1] ?? 'Gestión documental'
@@ -119,6 +122,11 @@ function Layout() {
         <header className="topbar">
           <div className="crumb">{seccion}</div>
           <div className="topbar-actions">
+            <button type="button" className="tema-toggle" onClick={() => setTema(alternarTema())}
+              title={tema === 'oscuro' ? 'Cambiar a modo día' : 'Cambiar a modo noche'}
+              aria-label={tema === 'oscuro' ? 'Cambiar a modo día' : 'Cambiar a modo noche'}>
+              {tema === 'oscuro' ? '☀' : '☾'}
+            </button>
             <span className="badge gris" title={`Permisos vigentes: ${sesion?.permisos?.length ?? 0}`}>
               <IconEscudo size={13} /> {sesion?.rolPrincipal ?? 'Sin rol'}
             </span>

@@ -12,6 +12,15 @@
     <!-- Las tipografías se sirven desde este mismo origen (public/fuentes).
          Cargarlas desde Google avisaba a un tercero con la IP de cada funcionario. -->
     <title>Neptuno · Gestión Documental</title>
+      <script>
+      // Aplica el tema antes de pintar para evitar el parpadeo blanco.
+      try {
+        var t = localStorage.getItem('neptuno.tema')
+        if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'oscuro' : 'claro'
+        document.documentElement.dataset.tema = t
+        if (t === 'oscuro') document.querySelector('meta[name="theme-color"]').content = '#0f1318'
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
