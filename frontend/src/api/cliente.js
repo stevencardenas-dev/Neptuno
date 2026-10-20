@@ -1,13 +1,23 @@
 import { guardarSesion, leerSesion, limpiarSesion, tokenActual } from './almacenSesion.js'
 
 /**
- * Cliente HTTP del frontend hacia el servicio de usuarios (ms-auth-catalogs).
+ * Cliente HTTP del frontend hacia los microservicios.
  *
- * Todas las llamadas salen por el mismo origen con el prefijo `/api/usuarios`:
- * en desarrollo lo resuelve el proxy de Vite y en contenedores nginx, así que no
- * hay URLs absolutas que mantener ni problemas de CORS.
+ * Todas las llamadas salen por el mismo origen y solo cambia el prefijo: en
+ * desarrollo lo resuelve el proxy de Vite y en contenedores nginx, así que no hay
+ * URLs absolutas que mantener ni problemas de CORS. La renovación del token se pide
+ * siempre al servicio de usuarios, que es el que emite la sesión.
  */
 const BASE = '/api/usuarios'
+
+/** Prefijo del servicio de documentos (radicación), que comparte sesión y cliente. */
+export const BASE_DOCUMENTOS = '/api/documentos'
+
+/** Prefijo del servicio de auditoría (bitácora), que comparte sesión y cliente. */
+export const BASE_AUDITORIA = '/api/auditoria'
+
+/** Prefijo del servicio de flujos de trabajo, que comparte sesión y cliente. */
+export const BASE_WORKFLOW = '/api/workflow'
 
 /** Evento con el que el cliente avisa que el token dejó de servir (401). */
 export const EVENTO_SESION_PERDIDA = 'neptuno:sesion-perdida'
@@ -77,9 +87,9 @@ function renovarAcceso() {
   return renovacionEnCurso
 }
 
-function enviar(ruta, { metodo, cuerpo, parametros }) {
+function enviar(ruta, { metodo, cuerpo, parametros, base = BASE }) {
   const token = tokenActual()
-  return fetch(conParametros(`${BASE}${ruta}`, parametros), {
+  return fetch(conParametros(`${base}${ruta}`, parametros), {
     method: metodo,
     headers: {
       ...(cuerpo ? { 'Content-Type': 'application/json' } : {}),
@@ -96,11 +106,12 @@ function enviar(ruta, { metodo, cuerpo, parametros }) {
  * y repite la petición; solo si eso falla la sesión se da por perdida.
  *
  * @param {string} ruta      ruta relativa al prefijo, p. ej. `/usuarios`
- * @param {object} opciones  `metodo`, `cuerpo` (se serializa a JSON) y `parametros`
+ * @param {object} opciones  `metodo`, `cuerpo` (se serializa a JSON), `parametros`
+ *                           y `base` (prefijo del servicio; usuarios por defecto)
  * @returns {Promise<any>}   cuerpo de la respuesta, o null si fue 204
  */
-export async function peticion(ruta, { metodo = 'GET', cuerpo, parametros } = {}) {
-  const opciones = { metodo, cuerpo, parametros }
+export async function peticion(ruta, { metodo = 'GET', cuerpo, parametros, base = BASE } = {}) {
+  const opciones = { metodo, cuerpo, parametros, base }
   let respuesta = await enviar(ruta, opciones)
 
   if (respuesta.status === 401 && !RUTAS_SIN_RENOVACION.includes(ruta) && await renovarAcceso()) {

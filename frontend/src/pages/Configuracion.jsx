@@ -95,17 +95,15 @@ function FormularioTipo({ registro, guardando, error, onCerrar, onGuardar }) {
       ]}
     >
       <form id="form-tipo" className="form-form" onSubmit={(e) => { e.preventDefault(); onGuardar({ nombre, prefijo, origenes, estado }) }}>
+        <div className="field">
+          <label htmlFor="tipo-nombre">Nombre <span className="req">*</span></label>
+          <input id="tipo-nombre" type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Orden de servicio" />
+        </div>
         <div className="field-row">
-          <div className="field">
-            <label htmlFor="tipo-nombre">Nombre <span className="req">*</span></label>
-            <input id="tipo-nombre" type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Orden de servicio" />
-          </div>
           <div className="field">
             <label htmlFor="tipo-prefijo">Prefijo</label>
             <input id="tipo-prefijo" type="text" value={prefijo} onChange={(e) => setPrefijo(e.target.value)} placeholder="OS" />
           </div>
-        </div>
-        <div className="field-row">
           <div className="field">
             <label htmlFor="tipo-estado">Estado</label>
             <select id="tipo-estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
@@ -116,7 +114,7 @@ function FormularioTipo({ registro, guardando, error, onCerrar, onGuardar }) {
         </div>
         <div className="field">
           <label id="tipo-origenes">Orígenes permitidos <span className="req">*</span></label>
-          <div className="row" role="group" aria-labelledby="tipo-origenes">
+          <div className="opciones" role="group" aria-labelledby="tipo-origenes">
             {ORIGENES.map((origen) => (
               <label key={origen.valor} className="switch">
                 <input type="checkbox" checked={origenes.includes(origen.valor)} onChange={() => alternarOrigen(origen.valor)} />
@@ -175,13 +173,13 @@ function FormularioEntidad({ registro, guardando, error, onCerrar, onGuardar }) 
               <option>Proveedor</option><option>Entidad pública</option><option>Cliente</option>
             </select>
           </div>
-        </div>
-        <div className="field">
-          <label htmlFor="entidad-estado">Estado</label>
-          <select id="entidad-estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
-            <option value="ACTIVO">Activo</option>
-            <option value="INACTIVO">Inactivo</option>
-          </select>
+          <div className="field">
+            <label htmlFor="entidad-estado">Estado</label>
+            <select id="entidad-estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
         </div>
         {error ? <div className="error-message">{error}</div> : null}
       </form>
@@ -222,6 +220,8 @@ function Configuracion() {
   const entidades = usePeticion(() => listarEntidades(), [])
 
   const administrable = puede('catalogos:administrar')
+  // Cuántos registros tiene cada catálogo, para mostrarlo en su pestaña.
+  const cuentas = { tipos: tipos.datos?.length, areas: areas.datos?.length, entidades: entidades.datos?.length }
 
   async function ejecutar(accion) {
     setGuardando(true)
@@ -281,7 +281,6 @@ function Configuracion() {
   return (
     <>
       <PageHead
-        eyebrow="Configuración y parámetros del sistema"
         title="Parámetros"
         sub="Administra los catálogos que estructuran la radicación: tipos documentales, áreas y entidades."
         actions={administrable ? [
@@ -291,7 +290,10 @@ function Configuracion() {
 
       <div className="tabs">
         {tabs.map((t) => (
-          <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} type="button" onClick={() => setTab(t.id)}>{t.label}</button>
+          <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} type="button" onClick={() => setTab(t.id)}>
+            {t.label}
+            {typeof cuentas[t.id] === 'number' ? <span className="tab-cuenta">{cuentas[t.id]}</span> : null}
+          </button>
         ))}
       </div>
 

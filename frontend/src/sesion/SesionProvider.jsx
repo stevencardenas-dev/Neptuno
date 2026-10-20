@@ -14,13 +14,17 @@ const ContextoSesion = createContext(null)
 
 export function SesionProvider({ children }) {
   const [guardada, setGuardada] = useState(() => leerSesion())
+  // Distingue "aquí no hubo sesión nunca" de "la sesión se cayó": el login usa
+  // esta bandera para explicar al usuario por qué aterrizó ahí. Vive en memoria,
+  // así que muere con la recarga de la página y no puede quedar pegada.
+  const [perdida, setPerdida] = useState(false)
 
   // Cuando el cliente no logra renovar un token (vencido o revocado) la sesión se
   // olvida y la guarda de rutas devuelve al login. Si la renueva, se recargan los
   // permisos para que el menú y las guardas reflejen los vigentes.
   useEffect(() => {
-    const olvidar = () => setGuardada(null)
-    const recargar = () => setGuardada(leerSesion())
+    const olvidar = () => { setPerdida(true); setGuardada(null) }
+    const recargar = () => { setPerdida(false); setGuardada(leerSesion()) }
     window.addEventListener(EVENTO_SESION_PERDIDA, olvidar)
     window.addEventListener(EVENTO_SESION_RENOVADA, recargar)
     return () => {
@@ -34,10 +38,12 @@ export function SesionProvider({ children }) {
 
     return {
       sesion,
+      perdida,
       iniciar: async (correo, clave) => {
         const respuesta = await autenticacion.iniciarSesion(correo, clave)
         const nueva = { acceso: respuesta.acceso, refresco: respuesta.refresco, sesion: respuesta.sesion }
         guardarSesion(nueva)
+        setPerdida(false)
         setGuardada(nueva)
         return respuesta.sesion
       },
@@ -50,17 +56,18 @@ export function SesionProvider({ children }) {
           // Aunque el servicio no responda, la sesión local se cierra igual.
         } finally {
           limpiarSesion()
+          setPerdida(false)
           setGuardada(null)
         }
       },
       puede: (permiso) => sesion?.permisos?.includes(permiso) ?? false,
     }
-  }, [guardada])
+  }, [guardada, perdida])
 
   return <ContextoSesion.Provider value={valor}>{children}</ContextoSesion.Provider>
 }
 
-/** Acceso a la sesión vigente: `{sesion, iniciar, cerrar, puede}`. */
+/** Acceso a la sesión vigente: `{sesion, perdida, iniciar, cerrar, puede}`. */
 export function useSesion() {
   const contexto = useContext(ContextoSesion)
   if (!contexto) throw new Error('useSesion debe usarse dentro de SesionProvider')

@@ -1,8 +1,11 @@
 # Plantilla de nginx para Neptuno. El entrypoint de la imagen sustituye las
 # variables ${...} por las variables de entorno del contenedor.
 # El navegador solo habla con este origen; nginx reparte /api/* a cada servicio.
-
-resolver 127.0.0.11 valid=10s ipv6=off;
+#
+# No se fija "resolver" a propósito: Docker usa 127.0.0.11 y Podman 10.89.0.1,
+# así que fijarlo deja el proxy mudo al cambiar de motor. Sin variables en
+# proxy_pass, nginx resuelve los nombres al arrancar leyendo el /etc/resolv.conf
+# del contenedor, que funciona en ambos casos.
 
 server {
     listen 80;
@@ -42,6 +45,18 @@ server {
         try_files $uri =404;
     }
 
+    # Tipografías propias. No lleva caché inmutable como /assets/ porque el
+    # nombre no incluye hash: si algún día se cambia la fuente, conviene que el
+    # navegador vuelva a pedirla. Los add_header se repiten porque un add_header
+    # dentro de un location anula los heredados del server.
+    location /fuentes/ {
+        add_header Cache-Control "public, max-age=2592000";
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        try_files $uri =404;
+    }
+
     location = /index.html {
         add_header Cache-Control "public, max-age=0, must-revalidate";
         add_header X-Content-Type-Options "nosniff" always;
@@ -51,8 +66,7 @@ server {
 
     # --- servicio-usuarios ---
     location ^~ /api/usuarios/ {
-        set $upstream ${USUARIOS_SERVICE_HOST}:${USUARIOS_SERVICE_PORT};
-        proxy_pass http://$upstream;
+        proxy_pass http://${USUARIOS_SERVICE_HOST}:${USUARIOS_SERVICE_PORT};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -65,8 +79,27 @@ server {
 
     # --- servicio-documentos ---
     location ^~ /api/documentos/ {
-        set $upstream_documentos ${DOCUMENTOS_SERVICE_HOST}:${DOCUMENTOS_SERVICE_PORT};
-        proxy_pass http://$upstream_documentos;
+        proxy_pass http://${DOCUMENTOS_SERVICE_HOST}:${DOCUMENTOS_SERVICE_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # --- servicio-auditoria ---
+    location ^~ /api/auditoria/ {
+        proxy_pass http://${AUDITORIA_SERVICE_HOST}:${AUDITORIA_SERVICE_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # --- servicio-workflow ---
+    location ^~ /api/workflow/ {
+        proxy_pass http://${WORKFLOW_SERVICE_HOST}:${WORKFLOW_SERVICE_PORT};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

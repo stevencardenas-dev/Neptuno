@@ -28,6 +28,10 @@ export const IconResumen = (p) => (
 export const IconDocumentos = (p) => (
   <Svg {...p}><path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></Svg>
 )
+// Flujo de trabajo: un paso de entrada que se abre en dos caminos.
+export const IconFlujo = (p) => (
+  <Svg {...p}><rect x="2.6" y="9.2" width="6.4" height="5.6" rx="1.8" /><rect x="15" y="3" width="6.4" height="5.6" rx="1.8" /><rect x="15" y="15.4" width="6.4" height="5.6" rx="1.8" /><path d="M9 12h3.2M12.2 12V5.8h2.8M12.2 12v6.2h2.8" /></Svg>
+)
 export const IconUsuarios = (p) => (
   <Svg {...p}><circle cx="9" cy="8.5" r="3.3" /><path d="M3.2 20a5.9 5.9 0 0 1 11.6 0" /><path d="M16.4 5.6a3 3 0 0 1 0 5.8M17.6 20a5.6 5.6 0 0 0-2-4.2" /></Svg>
 )
@@ -73,3 +77,22 @@ export const IconTridente = (p) => (
     <path d="M9.6 18l2.4 3 2.4-3" />
   </Svg>
 )
+
+/* Ojo abierto y tachado: alternan la visibilidad de la contraseña. */
+export const IconOjo = (p) => (
+  <Svg {...p}>
+    <path d="M2.6 12S6.2 5.8 12 5.8 21.4 12 21.4 12 17.8 18.2 12 18.2 2.6 12 2.6 12Z" />
+    <circle cx="12" cy="12" r="3" />
+  </Svg>
+)
+export const IconOjoTachado = (p) => (
+  <Svg {...p}>
+    <path d="M10.4 6.2A9.4 9.4 0 0 1 12 6c5.8 0 9.4 6 9.4 6a17.6 17.6 0 0 1-2.7 3.4" />
+    <path d="M6.6 8.1A17.3 17.3 0 0 0 2.6 12S6.2 18 12 18a9.5 9.5 0 0 0 3.2-.6" />
+    <path d="M10 10a2.9 2.9 0 0 0 4 4" />
+    <path d="M3.5 3.5l17 17" />
+  </Svg>
+)
+
+/* Chevron: señala que una fila lleva a otra vista. */
+export const IconFlecha = (p) => (<Svg {...p}><path d="M9.5 5.5l7 6.5-7 6.5" /></Svg>)

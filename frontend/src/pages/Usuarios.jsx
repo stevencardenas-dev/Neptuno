@@ -192,7 +192,6 @@ function Usuarios() {
   return (
     <>
       <PageHead
-        eyebrow="Administración de usuarios y roles"
         title="Usuarios"
         sub="Crea, edita y da de baja usuarios, y asígnales uno o varios roles para determinar su nivel de acceso."
         actions={puedeCrear ? [<button key="n" className="btn" type="button" disabled={!areas.datos || !roles.datos} onClick={() => { setErrorAccion(''); setModal({ modo: 'crear' }) }}><IconMas size={16} /> Nuevo usuario</button>] : []}
@@ -300,14 +299,9 @@ function Usuarios() {
       </Card>
 
       <Note icono={<IconInfo size={17} />}>
-        Cada acción de esta vista viaja al servicio de usuarios con el token de la sesión: el
-        servicio valida los permisos del rol en cada solicitud y la baja
-        lógica revoca el acceso sin perder el historial en la bitácora.
-      </Note>
-
-      <Note icono={<IconInfo size={17} />}>
-        El servicio rechaza la baja de la propia cuenta y la del último administrador activo, y
-        publica cada cambio como evento de auditoría hacia RabbitMQ.
+        Los usuarios se dan de baja de forma lógica: se revoca el acceso pero se conserva el
+        historial. No se puede dar de baja la propia cuenta ni al último administrador activo.
+        Cada cambio queda registrado en la bitácora de auditoría.
       </Note>
 
       {modal ? (

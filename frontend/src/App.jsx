@@ -1,8 +1,12 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Layout from './components/Layout.jsx'
+import Bitacora from './pages/Bitacora.jsx'
 import Configuracion from './pages/Configuracion.jsx'
+import DisenadorFlujo from './pages/DisenadorFlujo.jsx'
+import Flujos from './pages/Flujos.jsx'
 import Login from './pages/Login.jsx'
 import Panel from './pages/Panel.jsx'
+import Radicacion from './pages/Radicacion.jsx'
 import Roles from './pages/Roles.jsx'
 import Usuarios from './pages/Usuarios.jsx'
 import { useSesion } from './sesion/SesionProvider.jsx'
@@ -12,10 +16,14 @@ import { useSesion } from './sesion/SesionProvider.jsx'
  * El token lo emite ms-auth-catalogs y viaja en el JWT de cada solicitud.
  */
 function RequiereSesion({ children }) {
-  const { sesion } = useSesion()
+  const { sesion, perdida } = useSesion()
   const { pathname } = useLocation()
 
-  if (!sesion) return <Navigate to="/login" replace state={{ destino: pathname }} />
+  // `motivo` viaja solo cuando la sesión se cayó sola (el refresco falló), para
+  // que el login pueda explicar por qué apareció en vez de mudarse en silencio.
+  if (!sesion) {
+    return <Navigate to="/login" replace state={{ destino: pathname, motivo: perdida ? 'expirada' : undefined }} />
+  }
   return children
 }
 
@@ -34,9 +42,13 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/app" element={<RequiereSesion><Layout /></RequiereSesion>}>
         <Route index element={<Panel />} />
+        <Route path="radicacion" element={<RequierePermiso permiso="radicados:consultar"><Radicacion /></RequierePermiso>} />
+        <Route path="flujos" element={<RequierePermiso permiso="flujos:administrar"><Flujos /></RequierePermiso>} />
+        <Route path="flujos/:id" element={<RequierePermiso permiso="flujos:administrar"><DisenadorFlujo /></RequierePermiso>} />
         <Route path="usuarios" element={<RequierePermiso permiso="usuarios:consultar"><Usuarios /></RequierePermiso>} />
         <Route path="roles" element={<RequierePermiso permiso="roles:consultar"><Roles /></RequierePermiso>} />
         <Route path="configuracion" element={<RequierePermiso permiso="catalogos:consultar"><Configuracion /></RequierePermiso>} />
+        <Route path="bitacora" element={<RequierePermiso permiso="bitacora:consultar"><Bitacora /></RequierePermiso>} />
       </Route>
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>

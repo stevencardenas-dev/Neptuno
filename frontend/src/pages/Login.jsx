@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import {
-  IconCandado, IconEscudo, IconInfo, IconSalir, IconTridente,
+  IconCandado, IconEscudo, IconInfo, IconOjo, IconOjoTachado, IconTridente,
 } from '../components/Icons.jsx'
 import { useSesion } from '../sesion/SesionProvider.jsx'
 
@@ -12,13 +12,24 @@ function Login() {
 
   const [correo, setCorreo] = useState('')
   const [clave, setClave] = useState('')
+  const [verClave, setVerClave] = useState(false)
+  const [bloqMayus, setBloqMayus] = useState(false)
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
 
   const destino = state?.destino ?? '/app'
+  const sesionCaducada = state?.motivo === 'expirada'
 
   // Con sesión vigente no tiene sentido volver a autenticarse.
   if (sesion) return <Navigate to={destino} replace />
+
+  // El campo de contraseña no avisa si Bloq Mayús está activo: sin esto, un error
+  // de mayúsculas le llega al usuario como "credenciales inválidas" y sin pista.
+  function revisarBloqMayus(evento) {
+    if (typeof evento.getModifierState === 'function') {
+      setBloqMayus(evento.getModifierState('CapsLock'))
+    }
+  }
 
   async function entrar(e) {
     e.preventDefault()
@@ -41,35 +52,25 @@ function Login() {
 
   return (
     <div className="auth">
-      <aside className="auth-aside">
-        <div>
-          <span className="brand-mark" aria-hidden="true"><IconTridente size={24} /></span>
-          <h1>Gestión documental con control de acceso.</h1>
-          <p>
-            Neptuno centraliza la radicación, los flujos de aprobación, el expediente
-            institucional y la auditoría de cada documento de la organización.
-          </p>
-          <ul className="auth-features" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            <li><IconEscudo size={18} /> Acceso restringido según el rol y el área del usuario.</li>
-            <li><IconInfo size={18} /> Validación de permisos en cada solicitud.</li>
-            <li><IconCandado size={18} /> Bitácora inmutable de todas las acciones.</li>
-          </ul>
-        </div>
-        <span className="badge azul" style={{ width: 'fit-content' }}>
-          <IconSalir size={13} /> Cierre de sesión seguro en equipos compartidos
-        </span>
-      </aside>
-
       <section className="auth-panel">
-        <div className="card pad auth-card">
-          <span className="eyebrow">Acceso al sistema</span>
-          <div className="row mt-16" style={{ gap: 14 }}>
-            <span className="brand-mark" aria-hidden="true"><IconTridente size={26} /></span>
+        <div className="card auth-card">
+          <div className="auth-marca">
+            <span className="brand-mark" aria-hidden="true"><IconTridente size={22} /></span>
             <div>
-              <h2 style={{ fontSize: '1.4rem' }}>Iniciar sesión</h2>
-              <p className="muted small">Ingresa con tus credenciales corporativas</p>
+              <strong>Neptuno</strong>
+              <small>Gestión documental</small>
             </div>
           </div>
+
+          <h1>Iniciar sesión</h1>
+          <p className="auth-ayuda">Ingresa con tus credenciales institucionales.</p>
+
+          {sesionCaducada ? (
+            <div className="aviso" role="status">
+              <IconInfo size={15} />
+              <span>Tu sesión caducó por seguridad. Vuelve a ingresar para continuar.</span>
+            </div>
+          ) : null}
 
           <form className="form-form" onSubmit={entrar}>
             <div className="field">
@@ -81,24 +82,51 @@ function Login() {
                 onChange={(e) => setCorreo(e.target.value)}
                 placeholder="nombre@neptuno.gov.co"
                 autoComplete="username"
+                autoFocus
+                aria-invalid={error ? 'true' : undefined}
+                aria-describedby={error ? 'error-login' : undefined}
               />
             </div>
             <div className="field">
               <label htmlFor="clave">Contraseña</label>
-              <input
-                id="clave"
-                type="password"
-                value={clave}
-                onChange={(e) => setClave(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="current-password"
-              />
+              <div className="campo-clave">
+                <input
+                  id="clave"
+                  type={verClave ? 'text' : 'password'}
+                  value={clave}
+                  onChange={(e) => setClave(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  aria-invalid={error ? 'true' : undefined}
+                  aria-describedby={error ? 'error-login' : undefined}
+                  onKeyUp={revisarBloqMayus}
+                  onKeyDown={revisarBloqMayus}
+                  onBlur={() => setBloqMayus(false)}
+                />
+                <button
+                  type="button"
+                  className="btn-ojo"
+                  onClick={() => setVerClave((visible) => !visible)}
+                  aria-label={verClave ? 'Ocultar la contraseña' : 'Mostrar la contraseña'}
+                  aria-pressed={verClave}
+                  title={verClave ? 'Ocultar la contraseña' : 'Mostrar la contraseña'}
+                >
+                  {verClave ? <IconOjoTachado size={17} /> : <IconOjo size={17} />}
+                </button>
+              </div>
+              {bloqMayus ? <p className="aviso-tecla">Tienes Bloq Mayús activado.</p> : null}
             </div>
             <button className="btn block" type="submit" disabled={enviando}>
               <IconCandado size={17} /> {enviando ? 'Validando…' : 'Ingresar'}
             </button>
-            {error ? <div className="error-message">{error}</div> : null}
+            {error ? (
+              <div className="error-message" id="error-login" role="alert">{error}</div>
+            ) : null}
           </form>
+
+          <p className="auth-pie">
+            <IconEscudo size={13} /> El acceso y cada acción quedan en la bitácora.
+          </p>
         </div>
       </section>
     </div>

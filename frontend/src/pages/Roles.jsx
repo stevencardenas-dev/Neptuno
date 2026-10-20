@@ -6,7 +6,7 @@ import {
   obtenerRol, usuariosDelRol,
 } from '../api/roles.js'
 import { useSesion } from '../sesion/SesionProvider.jsx'
-import { TIPOS_ROL, etiquetaTipoRol } from '../util/formato.js'
+import { TIPOS_ROL, etiquetaTipoRol, iniciales } from '../util/formato.js'
 import {
   IconCheck, IconEditar, IconEscudo, IconInfo, IconMas, IconPapelera, IconRoles, IconUsuarios,
 } from '../components/Icons.jsx'
@@ -54,8 +54,7 @@ function FormularioRol({ rol, tipos, guardando, error, onCerrar, onGuardar }) {
           <textarea id="rol-descripcion" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="¿Qué puede hacer este perfil?" />
         </div>
         <Note icono={<IconInfo size={17} />}>
-          Los permisos se asignan después con <strong>Editar permisos</strong>: el servicio los
-          valida en cada solicitud.
+          Los permisos se asignan después, con <strong>Editar permisos</strong>.
         </Note>
         {error ? <div className="error-message mt-16">{error}</div> : null}
       </form>
@@ -95,6 +94,7 @@ function Roles() {
   const puedeEditar = puede('roles:editar')
   const puedeEliminar = puede('roles:eliminar')
   const puedeAsignar = puede('roles:asignar-permisos')
+  const totalPermisos = (permisos.datos ?? []).reduce((total, grupo) => total + grupo.permisos.length, 0)
 
   function alternarPermiso(id) {
     setPermisosSel((actuales) => (actuales.includes(id) ? actuales.filter((p) => p !== id) : [...actuales, id]))
@@ -140,7 +140,6 @@ function Roles() {
   return (
     <>
       <PageHead
-        eyebrow="Administración de usuarios y roles"
         title="Roles y permisos"
         sub="Agrupa permisos por perfil, asígnalos a los usuarios y consulta quién puede hacer qué."
         actions={puedeCrear ? [<button key="n" className="btn" type="button" onClick={() => { setErrorAccion(''); setModal({ tipo: 'rol' }) }}><IconMas size={16} /> Nuevo rol</button>] : []}
@@ -166,9 +165,8 @@ function Roles() {
                       setSelId(rol.id)
                     }
                   }}
-                  style={rolActual === rol.id ? { borderColor: 'rgba(47,107,255,0.5)', background: 'rgba(47,107,255,0.12)' } : undefined}
                 >
-                  <span className={`avatar ${rol.tipo === 'APROBADOR' ? 'rojo' : ''}`}>{rol.nombre[0]}</span>
+                  <span className="avatar" aria-hidden="true">{iniciales(rol.nombre)}</span>
                   <div className="body">
                     <h4>{rol.nombre}</h4>
                     <p>{rol.descripcion ?? 'Sin descripción'}</p>
@@ -196,11 +194,11 @@ function Roles() {
                 </button>
               ) : null}
             >
-              <div className="grid grid-4">
+              <div className="permisos">
                 {(permisos.datos ?? []).map((grupo) => (
-                  <div key={grupo.modulo} className="card pad" style={{ background: 'var(--superficie)' }}>
-                    <span className="eyebrow">{grupo.modulo}</span>
-                    <div className="stack mt-16" style={{ gap: 10 }}>
+                  <section key={grupo.modulo} className="permisos-grupo">
+                    <h4>{grupo.modulo}</h4>
+                    <div className="permisos-lista">
                       {grupo.permisos.map((permiso) => (
                         <label key={permiso.id} className="switch" title={permiso.descripcion ?? permiso.codigo}>
                           <input
@@ -213,20 +211,23 @@ function Roles() {
                         </label>
                       ))}
                     </div>
-                  </div>
+                  </section>
                 ))}
                 {!permisos.datos?.length ? (
                   <div className="empty">{permisos.cargando ? 'Cargando permisos…' : permisos.error || 'Sin catálogo de permisos.'}</div>
                 ) : null}
               </div>
-              <span className="hint mt-16">
-                {permisosSel.length} permisos seleccionados · el JWT de cada usuario viaja con los permisos de sus roles.
+              <span className="hint mt-16 permisos-pie">
+                {permisosSel.length} de {totalPermisos} permisos seleccionados ·{' '}
+                {puedeAsignar
+                  ? 'pulsa Guardar permisos para aplicarlos.'
+                  : 'tu rol no puede modificarlos.'}
               </span>
             </Card>
           ) : null}
         </div>
 
-        <div className="grid grid-3">
+        <div className="grid grid-2">
           <Card title="Resumen del rol" icono={<IconRoles size={17} />}>
             <KV items={[
               { k: 'Nombre', v: sel?.nombre ?? '—' },
@@ -265,13 +266,12 @@ function Roles() {
               </div>
             ) : <div className="empty">{asignados.cargando ? 'Cargando usuarios…' : 'Ningún usuario tiene este rol.'}</div>}
           </Card>
-
-          <Note icono={<IconInfo size={17} />}>
-            Los roles y permisos viven en <strong>auth_catalogs_db</strong>: este frontend los
-            consulta y modifica por el API, así que cualquier cambio se refleja en el servicio y
-            queda registrado en la bitácora de auditoría.
-          </Note>
         </div>
+
+        <Note icono={<IconInfo size={17} />}>
+          Cada cambio en roles y permisos queda registrado en la bitácora de auditoría, con
+          quién lo hizo y cuándo.
+        </Note>
       </div>
 
       {modal?.tipo === 'rol' ? (

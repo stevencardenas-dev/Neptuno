@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Card, KV, PageHead, Person, Stat } from '../components/ui.jsx'
+import { Card, KV, PageHead, Stat } from '../components/ui.jsx'
 import { usePeticion } from '../api/usePeticion.js'
 import { listarUsuarios } from '../api/usuarios.js'
 import { listarRoles } from '../api/roles.js'
@@ -7,7 +7,7 @@ import { listarAreas, listarEntidades, listarTiposDocumentales } from '../api/ca
 import { useSesion } from '../sesion/SesionProvider.jsx'
 import { formatearFecha } from '../util/formato.js'
 import {
-  IconArchivo, IconConfig, IconDocumentos, IconEscudo, IconInfo, IconRoles, IconUsuarios,
+  IconArchivo, IconConfig, IconDocumentos, IconEscudo, IconFlecha, IconInfo, IconRoles, IconUsuarios,
 } from '../components/Icons.jsx'
 
 /** Resuelve la consulta solo si la sesión tiene el permiso; si no, la métrica no se muestra. */
@@ -41,11 +41,11 @@ function Panel() {
   const entidades = usarMetrica(catalogos, () => listarEntidades({ soloActivas: true }), (lista) => lista.length)
 
   const metricas = [
-    { clave: 'usuarios', metrica: usuariosActivos, label: 'Usuarios activos', icono: <IconUsuarios size={19} />, tono: 'azul', to: '/app/usuarios' },
-    { clave: 'roles', metrica: roles, label: 'Roles definidos', icono: <IconRoles size={19} />, tono: 'rojo', to: '/app/roles' },
-    { clave: 'areas', metrica: areas, label: 'Áreas activas', icono: <IconArchivo size={19} />, tono: 'azul', to: '/app/configuracion' },
-    { clave: 'tipos', metrica: tipos, label: 'Tipos documentales activos', icono: <IconDocumentos size={19} />, tono: 'azul', to: '/app/configuracion' },
-    { clave: 'entidades', metrica: entidades, label: 'Entidades activas', icono: <IconConfig size={19} />, tono: 'rojo', to: '/app/configuracion' },
+    { clave: 'usuarios', metrica: usuariosActivos, label: 'Usuarios activos', icono: <IconUsuarios size={15} />, tono: 'azul', to: '/app/usuarios' },
+    { clave: 'roles', metrica: roles, label: 'Roles definidos', icono: <IconRoles size={15} />, tono: 'azul', to: '/app/roles' },
+    { clave: 'areas', metrica: areas, label: 'Áreas activas', icono: <IconArchivo size={15} />, tono: 'azul', to: '/app/configuracion' },
+    { clave: 'tipos', metrica: tipos, label: 'Tipos documentales', icono: <IconDocumentos size={15} />, tono: 'azul', to: '/app/configuracion' },
+    { clave: 'entidades', metrica: entidades, label: 'Entidades activas', icono: <IconConfig size={15} />, tono: 'azul', to: '/app/configuracion' },
   ].filter(({ metrica }) => metrica.visible)
 
   const accesos = [
@@ -57,7 +57,6 @@ function Panel() {
   return (
     <>
       <PageHead
-        eyebrow="Panel general"
         title={primerNombre ? `Buen día, ${primerNombre}` : 'Buen día'}
         sub={`${sesion?.area ?? 'Sin área'} · Rol ${sesion?.rolPrincipal ?? 'sin asignar'}.`}
       />
@@ -76,9 +75,13 @@ function Panel() {
         <div className="stack">
           <Card title="Accesos rápidos" icono={<IconEscudo size={17} />}>
             {accesos.length ? (
-              <div className="stack" style={{ gap: 8 }}>
+              <div className="lista-accesos">
                 {accesos.map(({ to, label, Icono }) => (
-                  <Link key={to} className="btn secondary block" to={to}><Icono size={16} /> {label}</Link>
+                  <Link key={to} className="acceso" to={to}>
+                    <Icono size={17} />
+                    <span>{label}</span>
+                    <IconFlecha size={15} />
+                  </Link>
                 ))}
               </div>
             ) : (
@@ -91,19 +94,14 @@ function Panel() {
         </div>
 
         <div className="stack">
-          <Card title="Sesión activa" icono={<IconInfo size={17} />}>
+          <Card title="Sesión activa" sub={sesion?.correo} icono={<IconInfo size={17} />}>
             {sesion ? (
-              <>
-                <Person nombre={sesion.nombre} detalle={sesion.correo} />
-                <div className="mt-16">
-                  <KV items={[
-                    { k: 'Área', v: sesion.area ?? '—' },
-                    { k: 'Roles', v: sesion.roles?.join(', ') || 'Sin roles' },
-                    { k: 'Permisos', v: sesion.permisos?.length ?? 0 },
-                    { k: 'Inicio de sesión', v: formatearFecha(sesion.ultimoAcceso) },
-                  ]} />
-                </div>
-              </>
+              <KV items={[
+                { k: 'Área', v: sesion.area ?? '—' },
+                { k: 'Roles', v: sesion.roles?.join(', ') || 'Sin roles' },
+                { k: 'Permisos', v: sesion.permisos?.length ?? 0 },
+                { k: 'Inicio de sesión', v: formatearFecha(sesion.ultimoAcceso) },
+              ]} />
             ) : null}
           </Card>
         </div>

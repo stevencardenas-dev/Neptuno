@@ -3,11 +3,10 @@ import { iniciales } from '../util/formato.js'
 import { IconCerrar } from './Icons.jsx'
 
 /* Encabezado de vista */
-export function PageHead({ eyebrow, title, sub, actions }) {
+export function PageHead({ title, sub, actions }) {
   return (
     <div className="page-head">
       <div>
-        {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
         <h1>{title}</h1>
         {sub ? <p className="sub">{sub}</p> : null}
       </div>
@@ -17,15 +16,16 @@ export function PageHead({ eyebrow, title, sub, actions }) {
 }
 
 /* Tarjeta de métrica */
-export function Stat({ tono = 'azul', icono, label, valor, nota, bar = true }) {
+/* Sin barra por defecto: nadie la usaba y no representaba ningún dato, era un
+   adorno que se pintaba en todas las métricas. Sigue disponible si algún día
+   alguien le pasa un valor real. */
+export function Stat({ tono = 'azul', icono, label, valor, nota, bar = false }) {
   return (
     <div className={`stat tono-${tono}`}>
-      <div className="stat-top">
-        <span className="stat-icon">{icono}</span>
-      </div>
-      <div>
-        <div className="stat-value">{valor}</div>
-        <div className="stat-label">{label}</div>
+      <div className="stat-value">{valor}</div>
+      <div className="stat-label">
+        {icono}
+        <span>{label}</span>
       </div>
       {bar ? <div className="stat-bar" /> : null}
       {nota ? <div className="stat-note">{nota}</div> : null}

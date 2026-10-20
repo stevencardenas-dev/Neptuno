@@ -1,7 +1,7 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useSesion } from '../sesion/SesionProvider.jsx'
 import {
-  IconConfig, IconEscudo, IconResumen, IconRoles, IconSalir, IconTridente, IconUsuarios,
+  IconConfig, IconDocumentos, IconEscudo, IconFlujo, IconResumen, IconRoles, IconSalir, IconTridente, IconUsuarios,
 } from './Icons.jsx'
 
 // Cada vista con `permiso` solo se ofrece si la sesión trae ese permiso (HU-013).
@@ -10,6 +10,24 @@ const grupos = [
     titulo: 'Inicio',
     enlaces: [
       { to: '/app', end: true, label: 'Panel', Icono: IconResumen },
+    ],
+  },
+  {
+    titulo: 'Radicación',
+    enlaces: [
+      { to: '/app/radicacion', label: 'Radicados', Icono: IconDocumentos, permiso: 'radicados:consultar' },
+    ],
+  },
+  {
+    titulo: 'Flujo de trabajo',
+    enlaces: [
+      { to: '/app/flujos', label: 'Flujos', Icono: IconFlujo, permiso: 'flujos:administrar' },
+    ],
+  },
+  {
+    titulo: 'Auditoría',
+    enlaces: [
+      { to: '/app/bitacora', label: 'Bitácora', Icono: IconEscudo, permiso: 'bitacora:consultar' },
     ],
   },
   {
@@ -22,18 +40,26 @@ const grupos = [
   },
 ]
 
-const titulos = {
-  '/app': ['Panel', 'Resumen general'],
-  '/app/usuarios': ['Usuarios', 'Administración'],
-  '/app/roles': ['Roles y permisos', 'Administración'],
-  '/app/configuracion': ['Parámetros del sistema', 'Administración'],
+// Sección a la que pertenece cada ruta. La barra superior solo ubica al usuario y
+// coincide con los grupos del menú; el título de la página lo pone el cuerpo de la
+// vista, para no decir lo mismo dos veces en 60 px de alto.
+const secciones = {
+  '/app': 'Inicio',
+  '/app/radicacion': 'Radicación',
+  '/app/flujos': 'Flujo de trabajo',
+  '/app/bitacora': 'Auditoría',
+  '/app/usuarios': 'Administración',
+  '/app/roles': 'Administración',
+  '/app/configuracion': 'Administración',
 }
 
 function Layout() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { sesion, cerrar, puede } = useSesion()
-  const meta = titulos[pathname] ?? ['Neptuno', 'Gestión documental']
+  const seccion = Object.entries(secciones)
+    .filter(([ruta]) => pathname === ruta || pathname.startsWith(`${ruta}/`))
+    .sort(([uno], [otro]) => otro.length - uno.length)[0]?.[1] ?? 'Gestión documental'
 
   const visibles = grupos
     .map((grupo) => ({ ...grupo, enlaces: grupo.enlaces.filter((enlace) => !enlace.permiso || puede(enlace.permiso)) }))
@@ -49,7 +75,7 @@ function Layout() {
       <aside className="sidebar" aria-label="Navegación principal">
         <Link className="sidebar-brand" to="/app">
           <span className="brand-mark" aria-hidden="true">
-            <IconTridente size={24} />
+            <IconTridente size={20} />
           </span>
           <span className="brand-text">
             <strong>Neptuno</strong>
@@ -71,26 +97,29 @@ function Layout() {
           </div>
         ))}
 
-        <div className="sidebar-user">
-          <span className="avatar">{sesion?.iniciales ?? '··'}</span>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <strong>{sesion?.nombre ?? 'Sesión sin datos'}</strong>
-            <small title={sesion?.area}>{sesion?.rolPrincipal ?? 'Sin rol'}{sesion?.area ? ` · ${sesion.area}` : ''}</small>
-          </div>
-          <button className="icon-btn" type="button" title="Cerrar sesión" onClick={salir}>
-            <IconSalir size={17} />
+        <div className="sidebar-pie">
+          <button className="sidebar-salir" type="button" onClick={salir}>
+            <IconSalir size={18} />
+            <span>Cerrar sesión</span>
           </button>
+
+          <div className="sidebar-user">
+            <span className="avatar">{sesion?.iniciales ?? '··'}</span>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <strong title={sesion?.nombre}>{sesion?.nombre ?? 'Sesión sin datos'}</strong>
+              <small title={[sesion?.rolPrincipal, sesion?.area].filter(Boolean).join(' · ')}>
+                {sesion?.area ?? sesion?.rolPrincipal ?? 'Sin datos'}
+              </small>
+            </div>
+          </div>
         </div>
       </aside>
 
       <div className="main">
         <header className="topbar">
-          <div>
-            <div className="crumb">{meta[1]}</div>
-            <h2>{meta[0]}</h2>
-          </div>
+          <div className="crumb">{seccion}</div>
           <div className="topbar-actions">
-            <span className="badge rojo" title={`Permisos vigentes: ${sesion?.permisos?.length ?? 0}`}>
+            <span className="badge gris" title={`Permisos vigentes: ${sesion?.permisos?.length ?? 0}`}>
               <IconEscudo size={13} /> {sesion?.rolPrincipal ?? 'Sin rol'}
             </span>
           </div>
