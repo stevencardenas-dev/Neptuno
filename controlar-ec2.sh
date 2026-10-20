@@ -32,8 +32,17 @@ set -euo pipefail
 PERFIL=${PERFIL_AWS:-neptuno}
 REGION=${REGION_AWS:-us-east-2}
 ETIQUETA=${ETIQUETA:-neptuno}
-AWS="aws --profile $PERFIL --region $REGION"
 COMENTARIO_CDN=${COMENTARIO_CDN:-"Neptuno - CDN sobre la instancia EC2 (SPA y API)"}
+
+# El CLI puede trabajar de dos maneras: con un perfil propio (cada quien entra con
+# su cuenta: aws login --profile neptuno) o con las credenciales que ya trae el
+# entorno (es lo que usa el botón de GitHub, con las claves guardadas como
+# secretos del repositorio). Si el perfil no existe, se usa el entorno.
+if aws configure list-profiles 2>/dev/null | grep -qx "$PERFIL"; then
+  AWS="aws --profile $PERFIL --region $REGION"
+else
+  AWS="aws --region $REGION"
+fi
 
 verde() { printf '\033[32m%s\033[0m\n' "$1"; }
 rojo()  { printf '\033[31m%s\033[0m\n' "$1"; }
@@ -46,7 +55,9 @@ fi
 # La sesion del CLI caduca. Sin esta comprobacion, un fallo de autenticacion se confunde
 # con "no existe la instancia", porque el error del CLI se descarta a proposito abajo.
 if ! $AWS sts get-caller-identity >/dev/null 2>&1; then
-  rojo "La sesion del perfil '$PERFIL' no esta activa. Entra con tu cuenta:  aws login --profile $PERFIL"
+  rojo "No hay sesion de AWS."
+  echo "   En tu equipo:  aws login --profile $PERFIL   (entra con tu cuenta)."
+  echo "   O pide a quien coordina que use el boton «Encender / apagar la app» en GitHub."
   exit 1
 fi
 

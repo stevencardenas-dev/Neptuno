@@ -1,0 +1,44 @@
+name: Encender / apagar la app
+
+# El interruptor de la app para el equipo. No hace falta tener cuenta de AWS ni
+# instalar nada: con pulsar «Run workflow» la acción de GitHub enciende o apaga
+# la instancia con las credenciales guardadas como secretos del repositorio
+# (nunca escritas en el código) y espera a que la app responda.
+#
+#   Actions -> Encender / apagar la app -> Run workflow -> accion: encender
+#
+on:
+  workflow_dispatch:
+    inputs:
+      accion:
+        description: 'Qué hacer'
+        required: true
+        default: 'encender'
+        type: choice
+        options:
+          - encender
+          - apagar
+          - estado
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neptuno-aws
+  cancel-in-progress: false
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Credenciales de AWS (vienen de los secretos del repositorio)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Encender o apagar
+        run: ./controlar-ec2.sh ${{ inputs.accion }}

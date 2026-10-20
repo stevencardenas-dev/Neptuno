@@ -238,6 +238,13 @@ se quedan en la instancia, en su archivo `.env`. Al encender, la app se levanta 
 la máquina (la unidad `neptuno.service`); al apagarla, esa misma unidad detiene los
 contenedores en orden.
 
+**Sin cuenta de AWS ni instalaciones**: en la pestaña **Actions** del repositorio está el
+flujo «Encender / apagar la app». Con pulsar *Run workflow* y elegir `encender` o `apagar`,
+la acción de GitHub hace lo mismo con unas claves guardadas como **secretos del
+repositorio** (nunca escritas en el código ni visibles en el repositorio). Es la vía que el
+equipo puede usar sin instalar nada; esas claves solo pueden encender y apagar esa
+instancia, nada más.
+
 Tiempos de un ciclo real: **apagar 37 s, encender 44 s** (la app queda lista ~20 s después
 de que arranca la instancia). Verificado con un login real por el CDN tras el ciclo.
 
