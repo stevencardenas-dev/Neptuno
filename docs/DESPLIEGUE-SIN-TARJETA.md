@@ -232,6 +232,12 @@ Regla operativa: **detener la instancia cuando no se use.** El repositorio trae 
 ./controlar-ec2.sh estado     # estado, IP y URLs
 ```
 
+Cada persona del equipo lo usa con **su propia cuenta de AWS** (`aws login --profile
+neptuno`); el script no lleva ninguna credencial dentro y los secretos de la aplicación
+se quedan en la instancia, en su archivo `.env`. Al encender, la app se levanta sola con
+la máquina (la unidad `neptuno.service`); al apagarla, esa misma unidad detiene los
+contenedores en orden.
+
 Tiempos de un ciclo real: **apagar 37 s, encender 44 s** (la app queda lista ~20 s después
 de que arranca la instancia). Verificado con un login real por el CDN tras el ciclo.
 

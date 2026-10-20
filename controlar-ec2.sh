@@ -1,13 +1,27 @@
 #!/usr/bin/env bash
-# Controla la instancia EC2 de Neptuno: encender, apagar o consultar.
+# Enciende y apaga Neptuno en AWS. Para el equipo.
 #
-#   ./controlar-ec2.sh encender   arranca la instancia y espera a que la app responda
-#   ./controlar-ec2.sh apagar     la detiene: deja de consumir horas de instancia
-#   ./controlar-ec2.sh estado     muestra estado, IP y URLs
+#   ./controlar-ec2.sh encender   levanta la instancia y deja la app respondiendo
+#   ./controlar-ec2.sh apagar     detiene la app y la instancia
+#   ./controlar-ec2.sh estado     dice si la app está arriba y dónde se entra
 #
-# Encender y apagar es la palanca de costo: las horas de instancia solo se facturan
-# mientras esta en marcha. La Elastic IP se mantiene asociada aunque este detenida,
-# para que el origen de CloudFront no cambie.
+# Por dentro:
+#   encender  1) arranca la instancia de EC2
+#             2) la app se levanta sola: en la instancia hay una unidad de
+#                systemd que arranca los contenedores al iniciar la máquina
+#             3) espera a que respondan la web y el backend (~1-2 min en frío)
+#   apagar    1) para la instancia; al apagarse, esa misma unidad detiene los
+#                contenedores en orden (la base de datos cierra sin perder datos)
+#             2) deja de consumir horas de máquina
+#
+# Este script NO lleva ninguna credencial. Cada quien entra con su propia cuenta
+# de AWS, y los secretos de la aplicación (contraseña del administrador, claves
+# de las bases de datos) se quedan en la instancia, dentro de su archivo .env:
+#
+#   1) Instalar el CLI: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+#   2) Entrar con tu cuenta:  aws login --profile neptuno
+#      Si tu usuario todavía no está en la cuenta del proyecto, pídelo: no se
+#      comparten claves ni contraseñas por el repositorio.
 #
 # Variables opcionales:
 #   PERFIL_AWS   perfil del CLI de AWS   (por defecto: neptuno)
@@ -21,15 +35,18 @@ ETIQUETA=${ETIQUETA:-neptuno}
 AWS="aws --profile $PERFIL --region $REGION"
 COMENTARIO_CDN=${COMENTARIO_CDN:-"Neptuno - CDN sobre la instancia EC2 (SPA y API)"}
 
+verde() { printf '\033[32m%s\033[0m\n' "$1"; }
+rojo()  { printf '\033[31m%s\033[0m\n' "$1"; }
+
 if ! command -v aws >/dev/null; then
-  echo "ERROR: falta el CLI de AWS." >&2
+  rojo "Falta el CLI de AWS. Instálalo con: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
   exit 1
 fi
 
 # La sesion del CLI caduca. Sin esta comprobacion, un fallo de autenticacion se confunde
 # con "no existe la instancia", porque el error del CLI se descarta a proposito abajo.
 if ! $AWS sts get-caller-identity >/dev/null 2>&1; then
-  echo "ERROR: la sesion del perfil $PERFIL vencio. Ejecuta 'aws login --profile $PERFIL' y reintenta." >&2
+  rojo "La sesion del perfil '$PERFIL' no esta activa. Entra con tu cuenta:  aws login --profile $PERFIL"
   exit 1
 fi
 
@@ -39,7 +56,7 @@ ID=$($AWS ec2 describe-instances \
       --query 'Reservations[0].Instances[0].InstanceId' --output text 2>/dev/null || true)
 
 if [ -z "$ID" ] || [ "$ID" = "None" ]; then
-  echo "ERROR: no encuentro una instancia con Name=$ETIQUETA en $REGION (perfil $PERFIL)." >&2
+  rojo "No se encuentra una instancia con el nombre '$ETIQUETA' en $REGION (perfil $PERFIL)."
   exit 1
 fi
 
@@ -55,13 +72,15 @@ urls() {
   cdn=$($AWS --region us-east-1 cloudfront list-distributions \
           --query "DistributionList.Items[?Comment=='$COMENTARIO_CDN'].DomainName | [0]" \
           --output text 2>/dev/null || true)
-  if [ "$ip" != "None" ]; then
-    echo "  directo a la instancia:  http://$ip:8080/"
-  fi
+  echo
+  verde "  Entrar a la app:"
   if [ -n "$cdn" ] && [ "$cdn" != "None" ]; then
-    echo "  CDN con HTTPS:           https://$cdn/"
+    echo "    https://$cdn/"
   fi
-  echo "  origen de CloudFront:    $dns"
+  if [ "$ip" != "None" ]; then
+    echo "    http://$ip:8080/   (directo a la instancia)"
+  fi
+  echo "    El usuario administrador y su clave estan en la instancia, en su archivo .env."
 }
 
 # La app esta lista cuando responde nginx Y tambien el backend. Ojo: /healthz lo sirve
@@ -85,18 +104,18 @@ case "${1:-estado}" in
     else
       echo ">> $ID ya estaba en marcha."
     fi
-    echo ">> Esperando a que la app responda (MySQL + Spring tardan ~1-2 min) ..."
+    echo ">> La app se levanta sola con la instancia. Esperando a que responda (MySQL + backend, ~1-2 min) ..."
     IP=$(dato PublicIpAddress)
     for i in $(seq 1 60); do
       if app_lista "$IP"; then
-        echo ">> App lista (nginx + backend) tras ~$((i*5))s."
+        verde ">> App lista (web + backend)."
         urls
         exit 0
       fi
       sleep 5
     done
-    echo ">> AVISO: la instancia arranco pero la app no respondio en 5 minutos." >&2
-    echo ">> Revisa:  ssh -i <clave> ubuntu@$IP 'podman ps -a; systemctl --user status neptuno'" >&2
+    rojo ">> La instancia arranco pero la app no respondio en 5 minutos."
+    echo ">> Revisa la consola de la instancia o entra por SSH con tu propia clave." >&2
     urls
     exit 1
     ;;
@@ -104,18 +123,24 @@ case "${1:-estado}" in
     if [ "$(dato State.Name)" = "stopped" ]; then
       echo ">> $ID ya estaba detenida."
     else
-      echo ">> Apagando $ID ..."
+      echo ">> Apagando $ID (la app se detiene en orden con ella) ..."
       $AWS ec2 stop-instances --instance-ids "$ID" >/dev/null
       $AWS ec2 wait instance-stopped --instance-ids "$ID"
     fi
-    echo ">> Detenida: deja de consumir horas de instancia."
-    echo ">> La Elastic IP sigue reservada para que el origen de CloudFront no cambie."
+    verde ">> Detenida: deja de consumir horas de instancia."
+    echo "   La Elastic IP sigue reservada para que el origen de CloudFront no cambie."
     echo "   Una IPv4 publica se factura igual, este asociada o no."
     ;;
   estado)
     $AWS ec2 describe-instances --instance-ids "$ID" \
       --query 'Reservations[0].Instances[0].{estado:State.Name,ip:PublicIpAddress,tipo:InstanceType,az:Placement.AvailabilityZone,lanzada:LaunchTime}' \
       --output table
+    IP=$(dato PublicIpAddress)
+    if [ "$IP" != "None" ] && app_lista "$IP"; then
+      verde "La app esta respondiendo."
+    else
+      echo "La app no esta respondiendo."
+    fi
     urls
     ;;
   *)
