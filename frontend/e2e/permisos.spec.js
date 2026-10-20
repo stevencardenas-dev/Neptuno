@@ -9,7 +9,8 @@ test.describe('Permisos y sesión (HU-013)', () => {
     const auditor = await crearUsuario(request, admin, ['Auditor'])
 
     await iniciarSesion(page, { correo: auditor.correo, clave: CLAVE_PRUEBA })
-    await expect(enlacesDelMenu(page)).toHaveText(['Panel'])
+    // El Auditor solo ve la bitácora: el resto del menú no le corresponde.
+    await expect(enlacesDelMenu(page)).toHaveText(['Panel', 'Bitácora'])
     await expect(page.getByText('Tu rol todavía no tiene permisos')).toBeVisible()
 
     // Escribir la URL a mano tampoco muestra la vista.
@@ -30,7 +31,7 @@ test.describe('Permisos y sesión (HU-013)', () => {
 
     await enlacesDelMenu(page).filter({ hasText: 'Roles y permisos' }).click()
     await expect(page).toHaveURL(/\/app\/roles$/)
-    await expect(page.getByRole('button', { name: /^A\s*Administrador/ })).toBeVisible()
+    await expect(page.locator('.list-row', { hasText: 'Administrador' })).toBeVisible()
 
     const sesion = await page.evaluate(() => JSON.parse(localStorage.getItem('neptuno.sesion')))
     expect(sesion.acceso.token).not.toBe('token-vencido')
@@ -42,7 +43,7 @@ test.describe('Permisos y sesión (HU-013)', () => {
     const usuario = await crearUsuario(request, admin, ['Radicador'])
 
     await iniciarSesion(page, { correo: usuario.correo, clave: CLAVE_PRUEBA })
-    await expect(enlacesDelMenu(page)).toHaveText(['Panel', 'Parámetros'])
+    await expect(enlacesDelMenu(page)).toHaveText(['Panel', 'Radicados', 'Parámetros'])
 
     // El iat del JWT tiene precisión de segundos: el cambio debe ser posterior al login.
     await page.waitForTimeout(1100)
@@ -50,7 +51,7 @@ test.describe('Permisos y sesión (HU-013)', () => {
 
     // La siguiente petición recibe 401, el cliente renueva y recarga la sesión.
     await page.reload()
-    await expect(enlacesDelMenu(page)).toHaveText(['Panel'])
+    await expect(enlacesDelMenu(page)).toHaveText(['Panel', 'Bitácora'])
     await expect(page).toHaveURL(/\/app$/)
   })
 })

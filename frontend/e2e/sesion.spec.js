@@ -11,13 +11,15 @@ test.describe('Autenticación (HU-001, HU-002)', () => {
     await expect(page.getByLabel('Correo institucional')).toHaveValue('')
     await expect(page.getByText(/mockup/i)).toHaveCount(0)
     await expect(page.getByText(ADMIN.clave)).toHaveCount(0)
+    // El login sobrio no ofrece recuperación de contraseña, pero sí deja ver la que se escribe.
     await expect(page.getByText('¿Olvidaste tu contraseña?')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Mostrar la contraseña' })).toBeVisible()
   })
 
   test('las credenciales inválidas muestran el mensaje del servicio', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Correo institucional').fill(ADMIN.correo)
-    await page.getByLabel('Contraseña').fill('clave-equivocada')
+    await page.getByRole('textbox', { name: 'Contraseña' }).fill('clave-equivocada')
     await page.getByRole('button', { name: 'Ingresar' }).click()
 
     await expect(page.getByText('El correo o la contraseña no son correctos.')).toBeVisible()
@@ -34,7 +36,11 @@ test.describe('Autenticación (HU-001, HU-002)', () => {
     await expect(page.getByRole('link', { name: /6\s*Roles definidos/ })).toBeVisible()
     await expect(page.getByRole('link', { name: /\d+\s*Áreas activas/ })).toBeVisible()
 
-    await expect(enlacesDelMenu(page)).toHaveText(['Panel', 'Usuarios', 'Roles y permisos', 'Parámetros'])
+    // El menú cambió con el rediseño: además de administración aparecen radicación,
+    // flujo de trabajo y auditoría, y solo se ofrece lo que el rol puede hacer.
+    await expect(enlacesDelMenu(page)).toHaveText([
+      'Panel', 'Radicados', 'Flujos', 'Bitácora', 'Usuarios', 'Roles y permisos', 'Parámetros',
+    ])
 
     // Las 5 métricas van en una sola fila en escritorio y no se ven como texto subrayado.
     const metricas = page.locator('a.stat-enlace')
@@ -44,11 +50,20 @@ test.describe('Autenticación (HU-001, HU-002)', () => {
     await expect(metricas.first()).toHaveCSS('text-decoration-line', 'none')
   })
 
-  test('las rutas de las vistas eliminadas vuelven al panel', async ({ page }) => {
+  test('las rutas que no existen vuelven al panel', async ({ page }) => {
     await iniciarSesion(page)
-    for (const ruta of ['/app/bandeja', '/app/radicacion', '/app/flujos', '/no-existe']) {
+    for (const ruta of ['/app/bandeja', '/no-existe']) {
       await page.goto(ruta)
       await expect(page).toHaveURL(/\/app$/)
+    }
+  })
+
+  test('el administrador abre las vistas nuevas de radicación y de flujos', async ({ page }) => {
+    await iniciarSesion(page)
+    for (const [ruta, titulo] of [['/app/radicacion', 'Radicación'], ['/app/flujos', 'Flujos']]) {
+      await page.goto(ruta)
+      await expect(page).toHaveURL(new RegExp(`${ruta}$`))
+      await expect(page.getByRole('heading', { name: titulo }).first()).toBeVisible()
     }
   })
 

@@ -20,7 +20,8 @@ export function correoUnico(prefijo = 'e2e') {
 export async function iniciarSesion(page, { correo, clave } = ADMIN) {
   await page.goto('/login')
   await page.getByLabel('Correo institucional').fill(correo)
-  await page.getByLabel('Contraseña').fill(clave)
+  // El login trae un botón para mostrar la contraseña: se busca el campo, no la etiqueta.
+  await page.getByRole('textbox', { name: 'Contraseña' }).fill(clave)
   await page.getByRole('button', { name: 'Ingresar' }).click()
   await expect(page).toHaveURL(/\/app$/)
 }

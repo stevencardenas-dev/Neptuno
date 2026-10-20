@@ -57,7 +57,7 @@ test.describe('Administración', () => {
 
   test('los roles se seleccionan con el teclado (HU-010)', async ({ page }) => {
     await enlacesDelMenu(page).filter({ hasText: 'Roles y permisos' }).click()
-    const auditor = page.getByRole('button', { name: /^A\s*Auditor/ })
+    const auditor = page.locator('.list-row', { hasText: 'Auditor' })
     await auditor.focus()
     await page.keyboard.press('Enter')
 
