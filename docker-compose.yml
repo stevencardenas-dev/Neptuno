@@ -4,6 +4,8 @@
 #   docker compose up --build   -> frontend en http://localhost:8080
 #                                  servicio-usuarios en http://localhost:8081
 #                                  servicio-documentos en http://localhost:8082
+#                                  servicio-auditoria en http://localhost:8083
+#                                  servicio-workflow en http://localhost:8084
 #                                  consola de RabbitMQ en http://localhost:15672
 #
 # Los secretos no tienen valor por defecto a propósito: compose se niega a
@@ -13,6 +15,7 @@ services:
     build:
       context: ./frontend
     container_name: neptuno-frontend
+    mem_limit: 128m
     ports:
       - "8080:80"
     environment:
@@ -20,6 +23,10 @@ services:
       USUARIOS_SERVICE_PORT: "8081"
       DOCUMENTOS_SERVICE_HOST: servicio-documentos
       DOCUMENTOS_SERVICE_PORT: "8082"
+      AUDITORIA_SERVICE_HOST: servicio-auditoria
+      AUDITORIA_SERVICE_PORT: "8083"
+      WORKFLOW_SERVICE_HOST: servicio-workflow
+      WORKFLOW_SERVICE_PORT: "8084"
     depends_on:
       servicio-usuarios:
         condition: service_healthy
@@ -32,9 +39,12 @@ services:
     build:
       context: ./servicio-usuarios
     container_name: neptuno-usuarios
+    # Techo de memoria: sin esto la JVM (-XX:MaxRAMPercentage=70) se dimensiona
+    # contra la RAM del host completo en lugar de contra su propio contenedor.
+    mem_limit: 1g
     ports:
       # Expuesto solo para pruebas locales; nginx lo consume por la red interna.
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     environment:
       DB_URL: jdbc:mysql://db-usuarios:3306/auth_catalogs_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       DB_USUARIO: ${DB_USUARIO:-neptuno}
@@ -56,6 +66,7 @@ services:
   db-usuarios:
     image: mysql:8.4
     container_name: neptuno-db-usuarios
+    mem_limit: 768m
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_CLAVE_ROOT:?Define DB_CLAVE_ROOT en .env}
       MYSQL_DATABASE: auth_catalogs_db
@@ -76,11 +87,17 @@ services:
   rabbitmq:
     image: rabbitmq:4-management-alpine
     container_name: neptuno-rabbitmq
+    mem_limit: 320m
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBIT_USUARIO:-neptuno}
       RABBITMQ_DEFAULT_PASS: ${RABBIT_CLAVE:?Define RABBIT_CLAVE en .env}
     ports:
-      - "15672:15672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      # Sin volumen, recrear el contenedor borra la cola. Los eventos que ya salieron de la
+      # bandeja de salida están marcados como publicados, así que nadie los repone: la
+      # bitácora perdería hechos en silencio (HU-043).
+      - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 15s
@@ -93,9 +110,10 @@ services:
     build:
       context: ./servicio-documentos
     container_name: neptuno-documentos
+    mem_limit: 384m
     ports:
       # Expuesto solo para pruebas locales; nginx lo consume por la red interna.
-      - "8082:8082"
+      - "127.0.0.1:8082:8082"
     environment:
       DB_HOST: db-documentos
       DB_USUARIO: ${DB_USUARIO:-neptuno}
@@ -115,6 +133,7 @@ services:
   db-documentos:
     image: mysql:8.4
     container_name: neptuno-db-documentos
+    mem_limit: 768m
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_CLAVE_ROOT:?Define DB_CLAVE_ROOT en .env}
       MYSQL_DATABASE: document_management_db
@@ -130,10 +149,106 @@ services:
       start_period: 60s
     restart: unless-stopped
 
-  # --- Próximos microservicios (ver docs/HOJA-DE-RUTA.md) ---
-  # ms-workflow-bpm y ms-audit-infra se agregan aquí, cada uno con su propia
-  # base de datos, siguiendo el patrón de servicio-usuarios.
+  # --- ms-audit-infra: bitácora inalterable (HU-043…HU-047) ---
+  servicio-auditoria:
+    build:
+      context: ./servicio-auditoria
+    container_name: neptuno-auditoria
+    # El binario de Go es estático y muy liviano; el techo es holgado a propósito.
+    mem_limit: 128m
+    ports:
+      # Expuesto solo para pruebas locales; nginx lo consume por la red interna.
+      - "127.0.0.1:8083:8083"
+    environment:
+      DB_HOST: db-auditoria
+      DB_NOMBRE: audit_infra_db
+      DB_USUARIO: ${DB_USUARIO:-neptuno}
+      DB_CLAVE: ${DB_CLAVE:?Define DB_CLAVE en .env}
+      JWT_SECRETO: ${JWT_SECRETO:?Define JWT_SECRETO en .env (mínimo 32 caracteres)}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USUARIO: ${RABBIT_USUARIO:-neptuno}
+      RABBIT_CLAVE: ${RABBIT_CLAVE:?Define RABBIT_CLAVE en .env}
+    depends_on:
+      db-auditoria:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db-auditoria:
+    image: mysql:8.4
+    container_name: neptuno-db-auditoria
+    mem_limit: 768m
+    # La migración crea dos disparadores que rechazan UPDATE y DELETE sobre la bitácora
+    # (HU-044). Con el binlog encendido MySQL exige el privilegio SUPER para crearlos, y
+    # el usuario de la aplicación no lo tiene a propósito; esta bandera lo exime solo de
+    # esa comprobación. El servidor únicamente atiende a esta base de datos.
+    command: ["--log-bin-trust-function-creators=1"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_CLAVE_ROOT:?Define DB_CLAVE_ROOT en .env}
+      MYSQL_DATABASE: audit_infra_db
+      MYSQL_USER: ${DB_USUARIO:-neptuno}
+      MYSQL_PASSWORD: ${DB_CLAVE:?Define DB_CLAVE en .env}
+    volumes:
+      - db-auditoria-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u \"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+  # --- ms-workflow-bpm: diseñador de flujos (HU-048…HU-051) ---
+  servicio-workflow:
+    build:
+      context: ./servicio-workflow
+    container_name: neptuno-workflow
+    # NestJS compila a JavaScript y arranca con `node`; el techo es el mismo que el de
+    # servicio-documentos para poder comparar el consumo real de cada uno.
+    mem_limit: 384m
+    ports:
+      # Expuesto solo para pruebas locales; nginx lo consume por la red interna.
+      - "127.0.0.1:8084:8084"
+    environment:
+      DB_HOST: db-workflow
+      DB_NOMBRE: workflow_bpm_db
+      DB_USUARIO: ${DB_USUARIO:-neptuno}
+      DB_CLAVE: ${DB_CLAVE:?Define DB_CLAVE en .env}
+      JWT_SECRETO: ${JWT_SECRETO:?Define JWT_SECRETO en .env (mínimo 32 caracteres)}
+      USUARIOS_URL: http://servicio-usuarios:8081
+      RABBIT_HOST: rabbitmq
+      RABBIT_USUARIO: ${RABBIT_USUARIO:-neptuno}
+      RABBIT_CLAVE: ${RABBIT_CLAVE:?Define RABBIT_CLAVE en .env}
+    depends_on:
+      db-workflow:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db-workflow:
+    image: mysql:8.4
+    container_name: neptuno-db-workflow
+    mem_limit: 768m
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_CLAVE_ROOT:?Define DB_CLAVE_ROOT en .env}
+      MYSQL_DATABASE: workflow_bpm_db
+      MYSQL_USER: ${DB_USUARIO:-neptuno}
+      MYSQL_PASSWORD: ${DB_CLAVE:?Define DB_CLAVE en .env}
+    volumes:
+      - db-workflow-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u \"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
 
 volumes:
   db-usuarios-data:
   db-documentos-data:
+  db-auditoria-data:
+  db-workflow-data:
+  rabbitmq-data:

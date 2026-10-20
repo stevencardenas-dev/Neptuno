@@ -15,7 +15,15 @@ usuario) y las funcionalidades nuevas que se proponen.
 |---------------|--------|--------------|
 | `servicio-usuarios` (ms-auth-catalogs) | Implementado | HU-001…HU-016, HU-022 |
 | `servicio-documentos` (ms-document-management) | En curso: radicación (crear, consultar, listar, editar) | HU-017…HU-021, HU-023, HU-024, HU-039, HU-040 |
-| Frontend | Login, panel, usuarios, roles, parámetros (aún sin pantallas de radicación) | Las de usuarios |
+| `servicio-auditoria` (ms-audit-infra) | Implementado: bitácora encadenada por hash, consulta, historial por documento y filtros | HU-043…HU-047 |
+| `servicio-workflow` (ms-workflow-bpm) | En curso: diseñador de flujos (identidad del flujo, lienzo de pasos y transiciones, publicación) | HU-048…HU-061 |
+| Frontend | Login, panel, usuarios, roles, parámetros, radicación, flujos (lista y lienzo) y bitácora | Las de usuarios, radicación, flujos y auditoría |
+
+Avance: **45 de 85 historias (53 %)**. De las 40 que faltan, 20 son de flujo de trabajo,
+16 de documentos (14 dependen de MinIO) y 4 de auditoría (copias de seguridad, métricas y
+pruebas de carga). El conteo no pesa todas las historias igual —un formulario no cuesta lo
+mismo que el lienzo de pasos y transiciones— y las funcionalidades propuestas de la
+sección 2 van aparte de las 85.
 
 ## 1. Backlog pendiente, agrupado por microservicio
 
@@ -48,9 +56,21 @@ lo que depende de MinIO y del expediente (anexos, carpetas, plantillas y copias)
 
 ### ms-workflow-bpm — Diseñador de flujos, bandeja y firma (Node.js · NestJS)
 
+Implementado en `servicio-workflow/`: HU-048…HU-061 — la identidad del flujo (crear, listar,
+consultar y editar), el lienzo de pasos, transiciones y responsables, la validación de
+publicación y el archivo del flujo — con su propia base `workflow_bpm_db` y sus pantallas
+"Flujos" y "Diseñar flujo". La definición vive en la versión del flujo, no en el flujo: un
+flujo en borrador se edita, y al publicarlo su recorrido queda bloqueado para que los
+trámites en curso no cambien de camino.
+
 | HU | Funcionalidad |
 |----|---------------|
-| HU-048…HU-061 | CRUD de flujos, lienzo de estados y transiciones, validación y publicación |
+| HU-048, HU-049, HU-051 | Crear, listar, consultar y editar el flujo (implementado) |
+| HU-050 | Archivar el flujo y devolverlo a la operación (implementado) |
+| HU-052…HU-055 | Lienzo de pasos: consultarlo, agregar, corregir, marcar inicial/intermedio/final y ubicarlo (implementado) |
+| HU-056…HU-058 | Transiciones: crear la acción que lleva de un paso a otro, corregirla y eliminarla (implementado) |
+| HU-059, HU-060 | Responsables por paso (rol o área validados contra ms-auth-catalogs) (implementado) |
+| HU-061 | Validación y publicación: paso inicial, pasos finales y ningún paso aislado (implementado) |
 | HU-062…HU-068 | Bandeja de tareas: iniciar trámite, aprobar, cancelar y devolver con observación |
 | HU-069…HU-074 | Responsable por paso (usuario, grupo o rol), toma exclusiva, tenencia única del Original, SLA y semáforo |
 | HU-075…HU-077 | Estados que exigen firma, firma electrónica y consulta de firmas |
@@ -58,6 +78,10 @@ lo que depende de MinIO y del expediente (anexos, carpetas, plantillas y copias)
 | HU-083 | Consulta y aprobación desde el celular |
 
 ### ms-audit-infra — Bitácora y requerimientos no funcionales (Go)
+
+Implementado en `servicio-auditoria/`: HU-043…HU-047, sobre la misma cola que ya
+alimentaban los otros dos servicios. Falta lo no funcional (copias de seguridad,
+métricas y pruebas de carga).
 
 | HU | Funcionalidad |
 |----|---------------|
