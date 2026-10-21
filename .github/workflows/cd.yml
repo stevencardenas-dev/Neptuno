@@ -75,8 +75,9 @@ jobs:
           ruta="'"$RUTA"'"
           [ -n "$ruta" ] || ruta=$(dirname "$(find /home /opt /root -maxdepth 3 -name desplegar-ec2.sh 2>/dev/null | head -1)")
           cd "$ruta"
+          # XDG_RUNTIME_DIR: SSM no abre sesión de usuario y `systemctl --user` no encuentra el bus.
           # Si la carpeta se copió sin git, se enlaza al repo (público) sin tocar el .env.
-          sudo -u "$(stat -c %U .)" bash -c "[ -d .git ] || { git init -q && git remote add origin https://github.com/'"$REPO"'.git; }; git fetch -q origin main && git reset -q --hard '"$COMMIT"' && ./desplegar-ec2.sh"'
+          sudo -u "$(stat -c %U .)" bash -c "export XDG_RUNTIME_DIR=/run/user/\$(id -u); [ -d .git ] || { git init -q && git remote add origin https://github.com/'"$REPO"'.git; }; git fetch -q origin main && git reset -q --hard '"$COMMIT"' && ./desplegar-ec2.sh"'
 
           cmd=$(aws ssm send-command \
             --instance-ids "$INSTANCIA" \
