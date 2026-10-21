@@ -3,17 +3,17 @@ import { BASE_WORKFLOW, peticion } from './cliente.js'
 /**
  * Diseñador de flujos de trabajo (ms-workflow-bpm).
  *
- * HU-048 crear un flujo · HU-049 consultarlo y buscarlo · HU-051 corregir su nombre y su
+ * HU-048 crear un flujo · HU-051 consultarlo y buscarlo · HU-049 corregir su nombre y su
  * descripción. La definición (pasos, transiciones, responsables) y la publicación vienen
  * después, en el mismo archivo.
  */
 
-/** HU-049: listado paginado, con búsqueda por texto y filtro por estado. */
+/** HU-051: listado paginado, con búsqueda por texto y filtro por estado. */
 export function listarFlujos(filtros = {}) {
   return peticion('/flujos', { parametros: filtros, base: BASE_WORKFLOW })
 }
 
-/** HU-049: detalle de un flujo. */
+/** HU-051: detalle de un flujo. */
 export function consultarFlujo(id) {
   return peticion(`/flujos/${id}`, { base: BASE_WORKFLOW })
 }
@@ -23,7 +23,7 @@ export function crearFlujo(datos) {
   return peticion('/flujos', { metodo: 'POST', cuerpo: datos, base: BASE_WORKFLOW })
 }
 
-/** HU-051: editar el nombre o la descripción. */
+/** HU-049: editar el nombre o la descripción. */
 export function editarFlujo(id, datos) {
   return peticion(`/flujos/${id}`, { metodo: 'PUT', cuerpo: datos, base: BASE_WORKFLOW })
 }

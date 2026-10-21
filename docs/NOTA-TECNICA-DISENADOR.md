@@ -44,9 +44,9 @@ Administrador queda con 26 de los 27 permisos del catálogo; el que falta es
 | HU | Método y ruta | Qué hace | Respuesta |
 |---|---|---|---|
 | HU-048 | `POST /flujos` | Crea el flujo en `BORRADOR` | 201 |
-| HU-049 | `GET /flujos` | Lista y busca por texto y estado, en páginas | 200 |
-| HU-049 | `GET /flujos/{id}` | Detalle del flujo | 200 · 404 |
-| HU-051 | `PUT /flujos/{id}` | Corrige nombre y descripción | 200 |
+| HU-051 | `GET /flujos` | Lista y busca por texto y estado, en páginas | 200 |
+| HU-051 | `GET /flujos/{id}` | Detalle del flujo | 200 · 404 |
+| HU-049 | `PUT /flujos/{id}` | Corrige nombre y descripción | 200 |
 | HU-052 | `GET /flujos/{id}/grafo` | Pasos, transiciones, responsables y sitio de cada paso | 200 |
 | HU-053 | `POST /flujos/{id}/estados` | Agrega un paso | 201 |
 | HU-054 | `PUT /flujos/{id}/estados/{estadoId}` | Corrige nombre, descripción o sitio | 200 |

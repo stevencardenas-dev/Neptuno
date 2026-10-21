@@ -15,7 +15,7 @@ const descripcion = z
   .max(500, 'La descripción no puede superar 500 caracteres.')
   .nullish();
 
-// HU-048: crear flujo. HU-051: editar nombre y descripción de un flujo en borrador.
+// HU-048: crear flujo. HU-049: editar nombre y descripción de un flujo en borrador.
 export const esquemaCrear = z.object({ nombre, descripcion });
 export const esquemaEditar = z.object({ nombre: nombre.optional(), descripcion });
 

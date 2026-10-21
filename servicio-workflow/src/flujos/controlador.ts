@@ -11,14 +11,14 @@ import { ServicioFlujos } from './servicio';
 export class FlujosControlador {
   constructor(private readonly servicio: ServicioFlujos) {}
 
-  /** HU-049: listar y buscar flujos. */
+  /** HU-051: listar y buscar flujos. */
   @Get()
   @RequierePermiso('flujos:administrar')
   listar(@Query() consulta: Record<string, unknown>) {
     return this.servicio.listar(consulta);
   }
 
-  /** HU-049: consultar el detalle de un flujo. */
+  /** HU-051: consultar el detalle de un flujo. */
   @Get(':id')
   @RequierePermiso('flujos:administrar')
   consultar(@Param('id') id: string) {
@@ -32,7 +32,7 @@ export class FlujosControlador {
     return this.servicio.crear(cuerpo, actor);
   }
 
-  /** HU-051: editar nombre y descripción. */
+  /** HU-049: editar nombre y descripción. */
   @Put(':id')
   @RequierePermiso('flujos:administrar')
   editar(@Param('id') id: string, @Body() cuerpo: unknown, @ActorActual() actor: Actor) {

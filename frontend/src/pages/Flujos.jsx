@@ -20,7 +20,7 @@ function estadoDe(valor) {
   return ESTADOS.find((estado) => estado.valor === valor) ?? { etiqueta: valor, tono: 'gris' }
 }
 
-/** Formulario de creación y edición (HU-048 y HU-051). */
+/** Formulario de creación y edición (HU-048 y HU-049). */
 function FormularioFlujo({ flujo, onCerrar, onGuardado }) {
   const editando = Boolean(flujo)
   const [nombre, setNombre] = useState(flujo?.nombre ?? '')

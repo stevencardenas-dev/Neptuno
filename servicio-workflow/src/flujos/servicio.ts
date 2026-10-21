@@ -15,7 +15,7 @@ const DUPLICADO = 1062;
 export class ServicioFlujos {
   constructor(private readonly repo: RepositorioFlujos) {}
 
-  /** HU-049: buscar flujos por texto y estado, en páginas. */
+  /** HU-051: buscar flujos por texto y estado, en páginas. */
   async listar(consulta: Record<string, unknown>) {
     const analisis = esquemaFiltros.safeParse(consulta);
     if (!analisis.success) throw datosInvalidos('Revisa los filtros de búsqueda.', detallesDe(analisis.error));
@@ -24,7 +24,7 @@ export class ServicioFlujos {
     return { contenido, total, pagina: filtros.pagina, tamanio: filtros.tamanio };
   }
 
-  /** HU-049: consultar un flujo concreto. */
+  /** HU-051: consultar un flujo concreto. */
   async consultar(id: string): Promise<Flujo> {
     const flujo = await this.repo.obtener(id);
     if (!flujo) throw noEncontrado('No existe un flujo con ese identificador.');
@@ -45,7 +45,7 @@ export class ServicioFlujos {
     }
   }
 
-  /** HU-051: corregir el nombre o la descripción sin tocar la definición ni las versiones. */
+  /** HU-049: corregir el nombre o la descripción sin tocar la definición ni las versiones. */
   async editar(id: string, cuerpo: unknown, actor: Actor): Promise<Flujo> {
     const actual = await this.consultar(id);
     const analisis = esquemaEditar.safeParse(cuerpo ?? {});
