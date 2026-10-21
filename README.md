@@ -4,11 +4,12 @@ Repositorio monorepo que sigue una metodología de **microservicios**, con un
 frontend y un servicio por dominio. La identidad visual del sistema usa la
 paleta institucional **azul, rojo y blanco**.
 
-> **Estado actual:** implementados el **frontend** (`frontend/`) y el
-> **servicio de usuarios** (`servicio-usuarios/`, Java 21 + Spring Boot + MySQL).
-> Todas las vistas del frontend consumen ese servicio con JWT real; no hay datos
-> de ejemplo. El plan para el resto del backlog y las funcionalidades nuevas
-> propuestas está en [`docs/HOJA-DE-RUTA.md`](docs/HOJA-DE-RUTA.md).
+> **Estado actual:** implementados los cuatro servicios del proyecto y desplegados
+> en AWS: `servicio-usuarios/` (Java 21 + Spring Boot), `servicio-documentos/`
+> (Node 24 + Express), `servicio-auditoria/` (Go) y `servicio-workflow/`
+> (Node 24 + NestJS), más el `frontend/`. Todas las vistas consumen microservicios
+> reales; no hay datos de ejemplo. El avance del backlog (45 de 85 historias) y lo
+> que falta está en [`docs/HOJA-DE-RUTA.md`](docs/HOJA-DE-RUTA.md).
 
 ## Estructura del proyecto
 
@@ -22,11 +23,26 @@ Neptuno/
 │   ├── Neptuno_Requerimientos_Backlog_Sprints.xlsx # requerimientos, backlog con microservicio y endpoint por HU, sprints
 │   ├── esquema-base-datos.sql                      # tablas de las HU pendientes (3 bases MySQL)
 │   ├── MATRIZ-API-HU.md      # trazabilidad endpoint ↔ historia de usuario (servicio implementado)
-│   └── HOJA-DE-RUTA.md       # próximos microservicios y funcionalidades propuestas
+│   ├── HOJA-DE-RUTA.md       # próximos microservicios y funcionalidades propuestas
+│   ├── DESPLIEGUE-SIN-TARJETA.md # cómo se desplegó sin tarjeta y con costo 0 (documento del PO)
+│   ├── DESPLIEGUE.md         # manual de despliegue en EC2 (equipo)
+│   └── NOTA-TECNICA-*.md     # decisiones de diseño y mediciones del avance
 ├── .github/workflows/ci.yml  # pruebas del backend y build del frontend en cada PR
-├── docker-compose.yml        # frontend + servicio + MySQL + RabbitMQ
+├── docker-compose.yml        # frontend + servicios + MySQL + RabbitMQ
+├── controlar-ec2.sh          # encender y apagar la app en AWS (equipo)
+├── desplegar-ec2.sh          # despliegue en la instancia (se ejecuta dentro de ella)
 └── .env.example              # plantilla de secretos para docker compose
 ```
+
+## Documentación
+
+| Documento | Qué es |
+|---|---|
+| [`docs/HOJA-DE-RUTA.md`](docs/HOJA-DE-RUTA.md) | Estado de las 85 historias de usuario y lo que falta |
+| [`docs/DESPLIEGUE-SIN-TARJETA.md`](docs/DESPLIEGUE-SIN-TARJETA.md) | Cómo se desplegó en AWS **sin tarjeta de crédito** y con costo USD $0 (incluye su PDF) |
+| [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md) | Manual operativo del despliegue en EC2 (equipo) |
+| [`docs/INFORME-DESPLIEGUE-AWS.pdf`](docs/INFORME-DESPLIEGUE-AWS.pdf) | Informe al Product Owner, escrito **antes** de la ejecución: es el plan y sus supuestos. El estado real de la ejecución está en `DESPLIEGUE-SIN-TARJETA.md` |
+| `docs/NOTA-TECNICA-*.md` | Decisiones de diseño (Flyway, contrato de eventos, diseñador de flujos) y medición del peso de cada servicio |
 
 ## Frontend
 

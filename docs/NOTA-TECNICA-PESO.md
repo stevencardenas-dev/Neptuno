@@ -67,7 +67,7 @@ anexos entra en el mismo servidor o pide uno aparte.
 ## 4. Cómo volver a medirlo
 
 ```bash
-ssh -i neptuno.pem ubuntu@18.219.151.58
+ssh -i neptuno.pem ubuntu@<ip-publica-de-la-instancia>
 podman stats --no-stream --format '{{.Name}}\t{{.MemUsage}}'
 podman images --format '{{.Repository}}:{{.Tag}}\t{{.Size}}'
 df -h /            # disco
