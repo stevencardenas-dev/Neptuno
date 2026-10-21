@@ -1,43 +1,63 @@
-# Estado real del despliegue · AWS
+# Estado del despliegue en AWS
 
-Este documento acompaña a `INFORME-DESPLIEGUE-AWS.pdf` (el informe entregado al
-Product Owner el 16 de octubre). **El PDF se conserva tal como se entregó**: es el
-plan y sus supuestos, no el estado actual. Esta nota dice qué quedó abierto en
-aquel plan y cómo se resolvió, para que nadie lo lea como si el sistema siguiera
-sin desplegar.
+Cómo está desplegado Neptuno hoy y con qué garantías. Los datos son de la
+ejecución real, medidos sobre la instancia en marcha.
 
-El detalle completo de la ejecución está en
-[`DESPLIEGUE-SIN-TARJETA.md`](DESPLIEGUE-SIN-TARJETA.md).
+El detalle del por qué se puede desplegar sin tarjeta de crédito y a costo cero está
+en [`DESPLIEGUE-SIN-TARJETA.md`](DESPLIEGUE-SIN-TARJETA.md); el manual operativo
+está en [`DESPLIEGUE.md`](DESPLIEGUE.md).
 
-## 1. Lo que el informe dejó abierto
+## 1. Infraestructura
 
-| Punto abierto en el informe (16 de octubre) | Cómo quedó |
+| Elemento | Detalle |
 |---|---|
-| "Confirmar la disponibilidad de `t3.medium`" | El plan **gratuito rechaza** `t3.medium` (`InvalidParameterCombination`). La instancia que corre es **`m7i-flex.large`** (2 vCPU, 8 GB, 20 GB gp3) |
-| "Costo estimado ≈ USD 30 al mes" | El costo real es **USD $0**: la cuenta **no tiene tarjeta** (plan gratuito, que rechaza de plano cualquier recurso fuera del plan). Los créditos (**USD $120**) nunca se han gastado y el gasto acumulado es **$0** |
-| "El sistema aún no ha sido publicado" | **Publicado el 21 de octubre** y funcionando: https://d191zzy2qixa5q.cloudfront.net/ |
-| "El acceso público es por HTTP, sin cifrado" | Sigue siendo HTTP **en el origen**, pero el usuario entra por **HTTPS con CloudFront** (sin dominio propio y sin costo) |
-| "La IP pública cambia cada vez que se detiene" | Se le asignó una **IP elástica**: la dirección no cambia al apagar y encender |
-| "El script de despliegue aún no está incluido en el control de versiones" | `desplegar-ec2.sh` está en el repositorio, y además el despliegue es **continuo**: cuando el CI pasa en `main`, un flujo de trabajo reconstruye y reinicia la instancia por AWS Systems Manager |
+| Cuenta | Plan gratuito de AWS, **sin tarjeta**: el plan rechaza de plano cualquier recurso fuera de lo elegible, así que el costo es **USD $0** |
+| Instancia | Una sola EC2 (`m7i-flex.large`, 2 vCPU, 8 GB, 20 GB gp3) en `us-east-2` |
+| Contenedores | 10 (frontend + 4 microservicios + 4 MySQL + RabbitMQ) con Podman |
+| Red | Privada de contenedores; solo el frontend publica un puerto al exterior |
+| Publicación | **CloudFront** con HTTPS y una **IP elástica** en la instancia: la dirección no cambia al apagar y encender |
+| Créditos | USD $120 disponibles, **gasto acumulado $0** |
 
-## 2. Lo que el informe propuso y sí quedó como está
+Los servicios internos (8081, 8082, 8083, 8084 y 15672) escuchan en
+`127.0.0.1`: el exterior solo ve el puerto 8080, y el tráfico entre servicios va
+por la red interna de Podman.
 
-- El **puerto 8080** es el único accesible desde Internet; 8081, 8082, 8083, 8084 y
-  15672 quedan en la interfaz local de la instancia.
-- Los **secretos se generan al azar** al desplegar, viven en el `.env` de la
-  instancia con permisos restringidos y **nunca se versionan**.
-- Autenticación con **JWT** y control de acceso por **roles**.
-- Límites de memoria por contenedor, para que un servicio no acapare la máquina.
+## 2. Encender y apagar
 
-## 3. Lo que se añadió después
+El consumo de horas de máquina es el único costo real, así que la instancia se
+enciende solo cuando hace falta:
 
-- **Apagado y encendido sin costo**: `controlar-ec2.sh` y un botón en GitHub
-  (Actions → *Encender / apagar la app*) para que el equipo no necesite cuenta de
-  AWS ni instalar nada. Apagar: **37 s**. Encender: **44 s** (la app levanta sola,
-  con la unidad `neptuno.service`).
-- **Auditoría encadenada por hash** (`servicio-auditoria`, Go): cada hecho se
-  encadena con su huella, y la comprobación de integridad es parte de la página.
-- **Diseñador de flujos** (`servicio-workflow`, NestJS) con versión del flujo,
-  pasos, transiciones, responsables y publicación.
-- Aislamiento por **SCP de la organización**, permisos por persona y registro en
-  CloudTrail.
+- `./controlar-ec2.sh encender` — levanta la instancia y espera a que la app
+  responda. **La app se levanta sola** (una unidad de systemd arranca los
+  contenedores al iniciar la máquina): **44 s** en frío.
+- `./controlar-ec2.sh apagar` — detiene la app en orden (la base de datos cierra
+  sin perder datos) y luego la instancia: **37 s**.
+- `./controlar-ec2.sh estado` — si la app está respondiendo y dónde entrar.
+
+Hay además un botón en GitHub (pestaña **Actions → Encender / apagar la app**)
+para encenderla o apagarla sin instalar nada ni tener cuenta de AWS.
+
+## 3. Controles aplicados
+
+- Los **secretos** (claves de base de datos, clave JWT, clave entre servicios) se
+  generan al azar en el momento del desplegar, viven en un `.env` de la instancia
+  con permisos restringidos y **no se versionan nunca**.
+- **Autenticación con JWT** y control de acceso por roles; los permisos se siembran
+  idempotentemente y el rol Administrador es el único que los concentra.
+- **Límites de memoria** por contenedor, para que un servicio no acapare la máquina.
+- **SSH solo desde la IP del administrador**; el grupo de seguridad no expone las
+  bases de datos ni el broker.
+- La cuenta está en una **organización con SCP**: los límites valen para todos los
+  usuarios, incluidos los del equipo, y no se pueden relajar desde la cuenta.
+- Cada hecho de auditoría queda **encadenado por su huella**; la integridad de la
+  cadena se comprueba desde la propia pantalla de bitácora.
+
+## 4. Flujo de despliegue
+
+`desplegar-ec2.sh` se ejecuta dentro de la instancia y es idempotente: volver a
+correrlo tras un `git pull` reconstruye y reinicia el sistema con los últimos
+cambios, incluida la migración de la base de datos.
+
+Además, el despliegue es **continuo**: cuando las pruebas del CI pasan en `main`,
+un flujo de trabajo reconstruye la instancia por AWS Systems Manager y verifica
+que la app vuelve a responder.

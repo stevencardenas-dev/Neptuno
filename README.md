@@ -41,7 +41,7 @@ Neptuno/
 | [`docs/HOJA-DE-RUTA.md`](docs/HOJA-DE-RUTA.md) | Estado de las 85 historias de usuario y lo que falta |
 | [`docs/DESPLIEGUE-SIN-TARJETA.md`](docs/DESPLIEGUE-SIN-TARJETA.md) | Cómo se desplegó en AWS **sin tarjeta de crédito** y con costo USD $0 (incluye su PDF) |
 | [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md) | Manual operativo del despliegue en EC2 (equipo) |
-| [`docs/INFORME-DESPLIEGUE-AWS.pdf`](docs/INFORME-DESPLIEGUE-AWS.pdf) | Informe al Product Owner, escrito **antes** de la ejecución: es el plan y sus supuestos. Lo que quedó abierto y cómo se resolvió está en [`docs/ESTADO-DESPLIEGUE-AWS.md`](docs/ESTADO-DESPLIEGUE-AWS.md); el estado real, en `DESPLIEGUE-SIN-TARJETA.md` |
+| [`docs/ESTADO-DESPLIEGUE-AWS.md`](docs/ESTADO-DESPLIEGUE-AWS.md) | Cómo está desplegado hoy: infraestructura, costo, controles de seguridad y cómo encender y apagar la app |
 | `docs/NOTA-TECNICA-*.md` | Decisiones de diseño (Flyway, contrato de eventos, diseñador de flujos) y medición del peso de cada servicio |
 
 ## Frontend
