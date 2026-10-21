@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import mysql from 'mysql2/promise';
 import { migrar } from '../src/migrar.js';
 import { crearRepositorioMysql } from '../src/radicados/repositorio-mysql.js';
+import { fechaLocal } from '../src/radicados/codigo.js';
 
 // Prueba el repositorio contra un MySQL real. Se omite si no se define PRUEBA_MYSQL_HOST
 // (en CI lo aporta el servicio mysql del workflow). Usa una base propia que se recrea.
@@ -95,7 +96,7 @@ describe('repositorio MySQL', { skip: !activo && 'define PRUEBA_MYSQL_HOST para 
     const pagina = await repo.buscar({ origen: 'EXTERNO', pagina: 1, tamanio: 10 });
     assert.equal(pagina.contenido.length, 10);
     assert.ok(pagina.total >= 31);
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = fechaLocal(new Date());
     assert.ok((await repo.buscar({ desde: hoy, hasta: hoy, pagina: 0, tamanio: 5 })).total > 0);
   });
 
