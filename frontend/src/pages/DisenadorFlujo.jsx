@@ -150,6 +150,7 @@ function Lienzo({ grafo, seleccion, editable, onSeleccionar, onMover, onNuevoPas
         onPointerMove={mover}
         onPointerUp={soltar}
         onPointerLeave={soltar}
+        onClick={(evento) => { if (evento.target === evento.currentTarget) onSeleccionar(null) }}
         style={{ touchAction: 'none' }}
       >
         <defs>
@@ -295,7 +296,7 @@ function FormularioPasoNuevo({ onCerrar, onGuardar, guardando, error }) {
 }
 
 /** Ficha del paso seleccionado: datos, transiciones y responsables. */
-function FormularioPaso({ grafo, paso, catalogos, guardando, error, onGuardar, onRetirar }) {
+function FormularioPaso({ grafo, paso, catalogos, guardando, error, onGuardar, onRetirar, onVolver }) {
   const [nombre, setNombre] = useState(paso.nombre)
   const [descripcion, setDescripcion] = useState(paso.descripcion ?? '')
   const [sujeto, setSujeto] = useState('ROL')
@@ -319,6 +320,7 @@ function FormularioPaso({ grafo, paso, catalogos, guardando, error, onGuardar, o
     <div className="stack">
       <div className="row between">
         <h4 className="panel-titulo">{paso.tipo === 'INICIAL' ? 'Paso inicial' : paso.tipo === 'FINAL' ? 'Paso final' : 'Paso'}</h4>
+        <button className="btn ghost sm" type="button" onClick={onVolver}>← Volver</button>
       </div>
 
       <form
@@ -739,6 +741,7 @@ export default function DisenadorFlujo() {
               guardando={guardando}
               error={error}
               onRetirar={() => setConfirmar('paso')}
+              onVolver={() => setSeleccion(null)}
               onGuardar={(que, datos) => {
                 if (que === 'datos') return ejecutar(() => editarPaso(id, paso.id, datos))
                 if (que === 'tipo') return ejecutar(() => marcarPaso(id, paso.id, datos))
@@ -763,7 +766,7 @@ export default function DisenadorFlujo() {
                 esté, publícalo para ponerlo en operación.
               </p>
               <button className="btn" type="button" onClick={() => { setSeleccion(null); setNuevoPaso(true) }}>
-                <IconMas size={16} /> Agregar el primer paso
+                <IconMas size={16} /> {grafo.pasos.length ? 'Agregar paso' : 'Agregar el primer paso'}
               </button>
             </div>
           )}
