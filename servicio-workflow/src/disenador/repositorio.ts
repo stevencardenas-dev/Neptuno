@@ -444,13 +444,25 @@ export class RepositorioDisenador {
     return publicada!;
   }
 
+  /**
+   * HU-050: trámites de este flujo que aún no terminan. Todavía no existen trámites
+   * (HU-062), así que no hay nada que contar; al crear esa tabla, la consulta va aquí.
+   */
+  private async contarTramitesEnCurso(_cx: PoolConnection, _flujoId: string): Promise<number> {
+    return 0;
+  }
+
   /** HU-050: archivar un flujo para retirar circuitos obsoletos sin borrar su historia. */
   async desactivar(flujoId: string, actor: Autor): Promise<void> {
     await enTransaccion(this.pool, async (cx) => {
       const flujo = await this.flujoDe(cx, flujoId);
       if (flujo.estado === 'INACTIVO') throw conflicto('El flujo ya está archivado.');
-      // Cuando existan trámites (HU-062) aquí se cuenta si hay alguno en curso: el
-      // backlog pide no archivar un flujo con documentos en tránsito.
+      const enCurso = await this.contarTramitesEnCurso(cx, flujoId);
+      if (enCurso > 0) {
+        throw conflicto(
+          `No se puede archivar: el flujo tiene ${enCurso} trámite${enCurso === 1 ? '' : 's'} en curso.`,
+        );
+      }
       await cx.query(
         `update flujo set estado = 'INACTIVO', actualizado_por = uuid_to_bin(?), actualizado_en = utc_timestamp(6)
           where id = uuid_to_bin(?)`,
