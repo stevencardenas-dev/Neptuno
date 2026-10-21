@@ -50,7 +50,7 @@ function FormularioFlujo({ flujo, onCerrar, onGuardado }) {
       open
       title={editando ? 'Editar flujo' : 'Nuevo flujo'}
       sub={editando ? 'Los trámites que ya están en curso no cambian.' : 'Un flujo nuevo nace en borrador: no se usa hasta que se publique.'}
-      onCerrar={onCerrar}
+      onClose={onCerrar}
       ancho="640px"
       footer={[
         <button key="c" className="btn secondary" type="button" onClick={onCerrar} disabled={guardando}>Cancelar</button>,

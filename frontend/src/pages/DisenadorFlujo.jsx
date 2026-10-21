@@ -101,7 +101,7 @@ function puntoEnLienzo(svg, evento) {
 }
 
 /** HU-052: el flujo dibujado, con sus pasos arrastrables y sus transiciones. */
-function Lienzo({ grafo, seleccion, editable, onSeleccionar, onMover, onNuevoPaso }) {
+function Lienzo({ grafo, seleccion, editable, onSeleccionar, onMover }) {
   const [arrastre, setArrastre] = useState(null)
   const [suelto, setSuelto] = useState(null)
 
@@ -215,11 +215,6 @@ function Lienzo({ grafo, seleccion, editable, onSeleccionar, onMover, onNuevoPas
       </svg>
 
       <div className="lienzo-ayuda">
-        {editable ? (
-          <button className="btn secondary sm" type="button" onClick={onNuevoPaso}>
-            <IconMas size={15} /> Agregar paso
-          </button>
-        ) : null}
         <span className="muted small">
           {editable ? 'Arrastra un paso para ubicarlo; haz clic para editarlo.' : 'El flujo está publicado: el recorrido se consulta, no se edita.'}
         </span>
@@ -699,9 +694,7 @@ export default function DisenadorFlujo() {
             seleccion={seleccion}
             editable={!soloLectura}
             onSeleccionar={(pasoId) => { setNuevoPaso(false); setSeleccion(pasoId) }}
-            onMover={(pasoId, x, y) => ejecutar(() => editarPaso(id, pasoId, { posicionX: x, posicionY: y }))}
-            onNuevoPaso={() => { setSeleccion(null); setNuevoPaso(true) }}
-          />
+            onMover={(pasoId, x, y) => ejecutar(() => editarPaso(id, pasoId, { posicionX: x, posicionY: y }))}          />
         </Card>
 
         <Card title={soloLectura && paso ? 'Detalle del paso' : nuevoPaso ? 'Nuevo paso' : paso ? 'Editar paso' : 'Resumen del flujo'} icono={<IconInfo size={17} />}>
