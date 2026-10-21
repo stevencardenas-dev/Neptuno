@@ -69,12 +69,14 @@ jobs:
           INSTANCIA: ${{ steps.ec2.outputs.id }}
           RUTA: ${{ vars.RUTA_REPO_EC2 }}
           COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+          REPO: ${{ github.repository }}
         run: |
           remoto='set -e
           ruta="'"$RUTA"'"
           [ -n "$ruta" ] || ruta=$(dirname "$(find /home /opt /root -maxdepth 3 -name desplegar-ec2.sh 2>/dev/null | head -1)")
           cd "$ruta"
-          sudo -u "$(stat -c %U .)" bash -c "git fetch origin main && git reset --hard '"$COMMIT"' && ./desplegar-ec2.sh"'
+          # Si la carpeta se copió sin git, se enlaza al repo (público) sin tocar el .env.
+          sudo -u "$(stat -c %U .)" bash -c "[ -d .git ] || { git init -q && git remote add origin https://github.com/'"$REPO"'.git; }; git fetch -q origin main && git reset -q --hard '"$COMMIT"' && ./desplegar-ec2.sh"'
 
           cmd=$(aws ssm send-command \
             --instance-ids "$INSTANCIA" \
