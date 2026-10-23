@@ -4,6 +4,7 @@ import { Card, KV, Modal, Note, PageHead } from '../components/ui.jsx'
 import { usePeticion } from '../api/usePeticion.js'
 import { listarAreas } from '../api/catalogos.js'
 import { listarRoles } from '../api/roles.js'
+import { listarUsuarios } from '../api/usuarios.js'
 import {
   agregarPaso,
   agregarTransicion,
@@ -57,6 +58,7 @@ const ACCIONES = [
 const SUJETOS = [
   { valor: 'ROL', etiqueta: 'Un rol' },
   { valor: 'AREA', etiqueta: 'Un área' },
+  { valor: 'USUARIO', etiqueta: 'Un usuario' },
 ]
 
 /**
@@ -489,10 +491,10 @@ function FormularioPaso({ grafo, paso, catalogos, guardando, error, onGuardar, o
               </select>
             </label>
             <label className="field">
-              <span className="k">{sujeto === 'ROL' ? 'Rol' : 'Área'}</span>
+              <span className="k">{sujeto === 'ROL' ? 'Rol' : sujeto === 'USUARIO' ? 'Usuario' : 'Área'}</span>
               <select id="responsable-sujeto" value={sujetoId} onChange={(e) => setSujetoId(e.target.value)} required>
                 <option value="">Selecciona…</option>
-                {(sujeto === 'ROL' ? catalogos.roles : catalogos.areas).map((opcion) => (
+                {(sujeto === 'ROL' ? catalogos.roles : sujeto === 'USUARIO' ? catalogos.usuarios : catalogos.areas).map((opcion) => (
                   <option key={opcion.id} value={opcion.id}>{opcion.nombre}</option>
                 ))}
               </select>
@@ -585,6 +587,7 @@ export default function DisenadorFlujo() {
 
   const roles = usePeticion(() => listarRoles(), [])
   const areas = usePeticion(() => listarAreas({ soloActivas: true }), [])
+  const usuarios = usePeticion(() => listarUsuarios({ estado: 'ACTIVO', tamano: 100 }), [])
 
   useEffect(() => {
     let vigente = true
@@ -608,8 +611,10 @@ export default function DisenadorFlujo() {
     const nombres = new Map()
     for (const rol of roles.datos ?? []) nombres.set(`ROL:${rol.id}`, rol.nombre)
     for (const area of areas.datos ?? []) nombres.set(`AREA:${area.id}`, area.nombre)
-    return { nombres, roles: roles.datos ?? [], areas: areas.datos ?? [] }
-  }, [roles.datos, areas.datos])
+    const personas = usuarios.datos?.contenido ?? []
+    for (const persona of personas) nombres.set(`USUARIO:${persona.id}`, persona.nombre)
+    return { nombres, roles: roles.datos ?? [], areas: areas.datos ?? [], usuarios: personas }
+  }, [roles.datos, areas.datos, usuarios.datos])
 
   /** Cada cambio vuelve con el lienzo ya actualizado: una sola respuesta para todo. */
   async function ejecutar(accion) {

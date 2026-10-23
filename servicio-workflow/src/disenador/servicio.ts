@@ -148,16 +148,22 @@ export class ServicioDisenador {
   }
 
   /**
-   * HU-059: los roles y las áreas viven en ms-auth-catalogs, así que se comprueban allí
-   * antes de guardar. Los usuarios y los grupos (HU-069) todavía no tienen catálogo.
+   * HU-059: los roles, las áreas y los usuarios viven en ms-auth-catalogs, así que se
+   * comprueban allí antes de guardar. Los grupos (HU-069) todavía no tienen catálogo.
    */
   private async verificarSujeto(tipo: Responsable['tipoSujeto'], sujetoId: string, token: string): Promise<void> {
-    const consulta = tipo === 'ROL' ? this.catalogos.rol(sujetoId, token) : tipo === 'AREA' ? this.catalogos.area(sujetoId, token) : null;
+    const consulta =
+      tipo === 'ROL' ? this.catalogos.rol(sujetoId, token)
+      : tipo === 'AREA' ? this.catalogos.area(sujetoId, token)
+      : tipo === 'USUARIO' ? this.catalogos.usuario(sujetoId, token)
+      : null;
     if (!consulta) return;
     const sujeto = await consulta;
     if (!sujeto) {
       throw noEncontrado(
-        tipo === 'ROL' ? 'No existe ese rol en el sistema.' : 'No existe esa área en el sistema.',
+        tipo === 'ROL' ? 'No existe ese rol en el sistema.'
+        : tipo === 'AREA' ? 'No existe esa área en el sistema.'
+        : 'No existe ese usuario en el sistema o no está activo.',
       );
     }
   }
