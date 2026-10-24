@@ -98,3 +98,17 @@ export function desactivarFlujo(id) {
 export function reactivarFlujo(id) {
   return peticion(`/flujos/${id}/reactivar`, { metodo: 'PATCH', base: BASE_WORKFLOW })
 }
+
+/** Tipos documentales que atiende el flujo: {tipoDocumentalIds}. */
+export function tiposDeFlujo(id) {
+  return peticion(`/flujos/${id}/tipos-documentales`, { base: BASE_WORKFLOW })
+}
+
+export function asignarTiposDeFlujo(id, tipoDocumentalIds) {
+  return peticion(`/flujos/${id}/tipos-documentales`, { metodo: 'PUT', cuerpo: { tipoDocumentalIds }, base: BASE_WORKFLOW })
+}
+
+/** Flujos activos entre los que puede elegir quien radica un documento de ese tipo. */
+export function flujosDisponibles(tipoDocumentalId) {
+  return peticion('/flujos-disponibles', { parametros: { tipoDocumentalId }, base: BASE_WORKFLOW })
+}

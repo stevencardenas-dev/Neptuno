@@ -5,7 +5,7 @@ import { esquemaCrear, esquemaEditar, esquemaFiltros, validar } from './validaci
 const PERMISO_RECIBIDO = 'radicados:radicar-recibido';
 const PERMISO_CLASE = 'radicados:clase';
 
-export function crearServicioRadicados({ repo, catalogos, ahora = () => new Date() }) {
+export function crearServicioRadicados({ repo, catalogos, workflow = null, ahora = () => new Date() }) {
   // Comprueba contra servicio-usuarios que lo referenciado exista y esté activo.
   async function validarCatalogos(actor, datos, origen) {
     if (datos.tipoDocumentalId) {
@@ -40,7 +40,7 @@ export function crearServicioRadicados({ repo, catalogos, ahora = () => new Date
   return {
     /** HU-017, HU-018, HU-019, HU-024, HU-039, HU-040 */
     async crear(actor, cuerpo) {
-      const datos = validar(esquemaCrear, cuerpo);
+      const { flujoId, ...datos } = validar(esquemaCrear, cuerpo);
       // HU-024: Recibido solo lo registra quien tenga el permiso (rol Radicador).
       if (datos.origen === 'RECIBIDO' && !actor.permisos.has(PERMISO_RECIBIDO)) {
         throw prohibido('Solo el rol Radicador puede radicar documentos de origen Recibido.');
@@ -55,11 +55,34 @@ export function crearServicioRadicados({ repo, catalogos, ahora = () => new Date
       const areaId = datos.areaId ?? actor.areaId;
       await validarCatalogos(actor, { ...datos, areaId }, datos.origen);
 
-      return repo.insertar(
+      // El flujo se comprueba antes de radicar: si no atiende el tipo documental no se crea
+      // un radicado a medias.
+      if (flujoId) {
+        if (!workflow) throw reglaInvalida('Los flujos de trabajo no están disponibles.');
+        const disponibles = await workflow.flujosDisponibles(datos.tipoDocumentalId, actor.token);
+        if (!disponibles.some((flujo) => flujo.id === flujoId)) {
+          throw reglaInvalida('El flujo elegido no está activo o no atiende el tipo documental del documento.');
+        }
+      }
+
+      const radicado = await repo.insertar(
         { ...datos, areaId, estado: 'RADICADO', radicadoPor: actor.id, radicadoEn: ahora() },
         { fecha: hoy },
         evento('radicado.creado', actor, (r) => `Se radicó el documento ${r.codigo} (${r.origen}): ${r.asunto}`),
       );
+      if (!flujoId) return radicado;
+
+      // El radicado ya existe y su código no se puede reutilizar: si el trámite no arranca no
+      // se deshace nada, se avisa. El trámite es único por radicado, así que reintentarlo es seguro.
+      try {
+        const tramite = await workflow.iniciarTramite(
+          { radicadoId: radicado.id, radicadoCodigo: radicado.codigo, flujoId, tipoDocumentalId: datos.tipoDocumentalId },
+          actor.token,
+        );
+        return { ...radicado, tramite };
+      } catch (error) {
+        return { ...radicado, tramite: null, advertencia: `El documento se radicó, pero el trámite no pudo iniciarse: ${error.message}` };
+      }
     },
 
     /** HU-020 */

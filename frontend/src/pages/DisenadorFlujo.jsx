@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Card, KV, Modal, Note, PageHead } from '../components/ui.jsx'
 import { usePeticion } from '../api/usePeticion.js'
-import { listarAreas } from '../api/catalogos.js'
+import { listarAreas, listarTiposDocumentales } from '../api/catalogos.js'
 import { listarRoles } from '../api/roles.js'
 import { listarUsuarios } from '../api/usuarios.js'
 import {
   agregarPaso,
   agregarTransicion,
   asignarResponsable,
+  asignarTiposDeFlujo,
   desactivarFlujo,
   editarPaso,
   grafoFlujo,
@@ -18,6 +19,7 @@ import {
   reactivarFlujo,
   retirarPaso,
   retirarTransicion,
+  tiposDeFlujo,
 } from '../api/workflow.js'
 import {
   IconCheck,
@@ -574,6 +576,65 @@ function FichaPasoLectura({ grafo, paso, catalogos }) {
   )
 }
 
+/**
+ * Tipos documentales que atiende el flujo: quien radica un documento de esos tipos puede
+ * elegir este flujo. Se guarda aparte del recorrido, así que también se edita con el flujo
+ * publicado.
+ */
+function TiposDocumentalesFlujo({ flujoId }) {
+  const tipos = usePeticion(() => listarTiposDocumentales(), [])
+  const vinculados = usePeticion(() => tiposDeFlujo(flujoId), [flujoId])
+  const [seleccion, setSeleccion] = useState(null)
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState(null)
+  const [guardado, setGuardado] = useState(false)
+
+  const actuales = seleccion ?? vinculados.datos?.tipoDocumentalIds ?? []
+  const lista = (tipos.datos ?? []).filter((tipo) => tipo.estado === 'ACTIVO' || actuales.includes(tipo.id))
+
+  function alternar(id) {
+    setGuardado(false)
+    setSeleccion(actuales.includes(id) ? actuales.filter((otro) => otro !== id) : [...actuales, id])
+  }
+
+  async function guardar() {
+    setGuardando(true)
+    setError(null)
+    try {
+      await asignarTiposDeFlujo(flujoId, actuales)
+      setGuardado(true)
+      vinculados.recargar()
+      setSeleccion(null)
+    } catch (fallo) {
+      setError(fallo)
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <Card title="Tipos documentales" sub="Los documentos de estos tipos podrán iniciar su trámite con este flujo al radicarse" icono={<IconFlujo size={17} />}>
+      {tipos.error || vinculados.error ? <div className="error-message">No se pudieron cargar los tipos documentales.</div> : null}
+      <div className="opciones" role="group" aria-label="Tipos documentales del flujo">
+        {lista.map((tipo) => (
+          <label key={tipo.id} className="switch">
+            <input type="checkbox" checked={actuales.includes(tipo.id)} onChange={() => alternar(tipo.id)} />
+            {tipo.nombre}
+          </label>
+        ))}
+        {!lista.length && !tipos.cargando ? <p className="muted small">No hay tipos documentales activos.</p> : null}
+      </div>
+      {error ? <div className="error-message mt-8">{error.message}</div> : null}
+      <div className="row mt-8" style={{ gap: 8, alignItems: 'center' }}>
+        <button className="btn secondary sm" type="button" disabled={guardando || seleccion === null} onClick={guardar}>
+          {guardando ? 'Guardando…' : 'Guardar tipos'}
+        </button>
+        {guardado ? <span className="muted small">Guardado.</span> : null}
+      </div>
+    </Card>
+  )
+}
+
 export default function DisenadorFlujo() {
   const { id } = useParams()
   const [grafo, setGrafo] = useState(null)
@@ -775,6 +836,10 @@ export default function DisenadorFlujo() {
             </p>
           ) : null}
         </Card>
+      </div>
+
+      <div className="mt-16">
+        <TiposDocumentalesFlujo flujoId={id} />
       </div>
 
       <Modal

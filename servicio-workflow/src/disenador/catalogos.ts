@@ -12,6 +12,7 @@ import { ErrorApi, prohibido } from '../errores';
 export interface Catalogo {
   rol(id: string, token: string): Promise<{ id: string; nombre: string } | null>;
   area(id: string, token: string): Promise<{ id: string; nombre: string } | null>;
+  tipoDocumental(id: string, token: string): Promise<{ id: string; nombre: string; estado: string } | null>;
   /** Un usuario inactivo o dado de baja cuenta como inexistente: no puede atender pasos. */
   usuario(id: string, token: string): Promise<{ id: string; nombre: string } | null>;
 }
@@ -38,6 +39,7 @@ export function crearClienteCatalogos(baseUrl: string): Catalogo {
   return {
     rol: (id, token) => leer(`/roles/${id}`, token),
     area: (id, token) => leer(`/areas/${id}`, token),
+    tipoDocumental: (id, token) => leer(`/tipos-documentales/${id}`, token),
     usuario: async (id, token) => {
       const usuario = await leer(`/usuarios/${id}`, token);
       return usuario && !usuario.eliminadoEn && usuario.estado !== 'INACTIVO' ? usuario : null;

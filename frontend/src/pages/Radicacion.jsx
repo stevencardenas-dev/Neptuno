@@ -4,6 +4,7 @@ import { Card, KV, Modal, Note, PageHead } from '../components/ui.jsx'
 import { usePeticion } from '../api/usePeticion.js'
 import { crearRadicado, editarRadicado, listarRadicados, obtenerRadicado } from '../api/documentos.js'
 import { listarAreas, listarEntidades, listarTiposDocumentales } from '../api/catalogos.js'
+import { flujosDisponibles } from '../api/workflow.js'
 import { useSesion } from '../sesion/SesionProvider.jsx'
 import {
   CLASES, ESTADOS_RADICADO, ORIGENES_RADICABLES, etiquetaClase, etiquetaEstadoRadicado,
@@ -128,6 +129,13 @@ function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, erro
   const [origen, setOrigen] = useState(radicado?.origen ?? 'INTERNO')
   const [clase, setClase] = useState(radicado?.clase ?? 'ORIGINAL')
   const [tipoDocumentalId, setTipoDocumentalId] = useState(radicado?.tipoDocumentalId ?? '')
+  // Flujo de trabajo con el que arranca el trámite: solo al radicar, y entre los que
+  // atienden el tipo documental elegido. Es opcional.
+  const [flujoId, setFlujoId] = useState('')
+  const flujos = usePeticion(
+    () => (esEdicion || !tipoDocumentalId ? Promise.resolve([]) : flujosDisponibles(tipoDocumentalId)),
+    [esEdicion, tipoDocumentalId],
+  )
   const [areaId, setAreaId] = useState(radicado?.areaId ?? '')
   const [entidadId, setEntidadId] = useState(radicado?.entidadId ?? '')
   const [asunto, setAsunto] = useState(radicado?.asunto ?? '')
@@ -171,6 +179,7 @@ function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, erro
     } else {
       datos.origen = origen
       datos.clase = clase
+      if (flujoId) datos.flujoId = flujoId
     }
     onGuardar(datos)
   }
@@ -239,7 +248,7 @@ function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, erro
         <div className="field-row">
           <div className="field">
             <label htmlFor="radicado-tipo">Tipo documental <span className="req">*</span></label>
-            <select id="radicado-tipo" value={tipoDocumentalId} onChange={(e) => setTipoDocumentalId(e.target.value)}>
+            <select id="radicado-tipo" value={tipoDocumentalId} onChange={(e) => { setTipoDocumentalId(e.target.value); setFlujoId('') }}>
               <option value="">Selecciona el tipo…</option>
               {tiposDisponibles.map((tipo) => (
                 <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
@@ -259,6 +268,19 @@ function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, erro
             </select>
           </div>
         </div>
+
+        {!esEdicion && tipoDocumentalId && (flujos.datos ?? []).length ? (
+          <div className="field">
+            <label htmlFor="radicado-flujo">Flujo de trabajo</label>
+            <select id="radicado-flujo" value={flujoId} onChange={(e) => setFlujoId(e.target.value)}>
+              <option value="">Sin flujo por ahora</option>
+              {flujos.datos.map((flujo) => (
+                <option key={flujo.id} value={flujo.id}>{flujo.nombre}</option>
+              ))}
+            </select>
+            <span className="hint">Con un flujo, el documento arranca su trámite en el primer paso.</span>
+          </div>
+        ) : null}
 
         <div className="field">
           <label htmlFor="radicado-asunto">Asunto <span className="req">*</span></label>
@@ -369,6 +391,7 @@ export default function Radicacion() {
   const [modal, setModal] = useState(null)
   const [guardando, setGuardando] = useState(false)
   const [errorAccion, setErrorAccion] = useState(null)
+  const [aviso, setAviso] = useState('')
 
   const radicados = usePeticion(() => listarRadicados({
     codigo: fCodigo, q: fTexto, origen: fOrigen, tipoDocumentalId: fTipo, estado: fEstado,
@@ -398,7 +421,7 @@ export default function Radicacion() {
     setErrorAccion(null)
     try {
       if (modal?.modo === 'editar') await editarRadicado(modal.radicado.id, datos)
-      else await crearRadicado(datos)
+      else setAviso((await crearRadicado(datos)).advertencia ?? '')
       setModal(null)
       radicados.recargar()
     } catch (fallo) {
@@ -410,6 +433,7 @@ export default function Radicacion() {
 
   return (
     <>
+      {aviso ? <div className="error-message" role="alert">{aviso}</div> : null}
       <PageHead
         title="Radicación"
         sub="Registra los documentos que entran y salen de la entidad con su código de radicado, y consulta los ya registrados."

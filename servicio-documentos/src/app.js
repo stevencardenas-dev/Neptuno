@@ -4,7 +4,7 @@ import { autenticar } from './seguridad.js';
 import { crearServicioRadicados } from './radicados/servicio.js';
 import { crearRutasRadicados } from './radicados/rutas.js';
 
-export function crearApp({ config, repo, catalogos, comprobarSalud = async () => {}, ahora }) {
+export function crearApp({ config, repo, catalogos, workflow, comprobarSalud = async () => {}, ahora }) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '100kb' }));
@@ -18,7 +18,7 @@ export function crearApp({ config, repo, catalogos, comprobarSalud = async () =>
     }
   });
 
-  const servicio = crearServicioRadicados({ repo, catalogos, ahora });
+  const servicio = crearServicioRadicados({ repo, catalogos, workflow, ahora });
   const api = express.Router();
   api.use(autenticar(config.jwt));
   api.use('/radicados', crearRutasRadicados(servicio));

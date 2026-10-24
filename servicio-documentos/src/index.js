@@ -4,6 +4,7 @@ import { crearClienteCatalogos } from './catalogos.js';
 import { cargarConfig } from './config.js';
 import { crearPublicador } from './eventos.js';
 import { migrar } from './migrar.js';
+import { crearClienteWorkflow } from './workflow.js';
 import { crearRepositorioMysql } from './radicados/repositorio-mysql.js';
 
 const config = cargarConfig();
@@ -23,6 +24,7 @@ const app = crearApp({
   config,
   repo,
   catalogos: crearClienteCatalogos(config.usuariosUrl),
+  workflow: crearClienteWorkflow(config.workflowUrl),
   comprobarSalud: () => pool.query('select 1'),
 });
 

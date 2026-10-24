@@ -30,6 +30,8 @@ export const esquemaCrear = z
     origen: z.enum(['INTERNO', 'EXTERNO', 'RECIBIDO'], { errorMap: () => ({ message: 'El origen debe ser INTERNO, EXTERNO o RECIBIDO' }) }),
     clase: z.enum(['ORIGINAL', 'COPIA'], { errorMap: () => ({ message: 'La clase debe ser ORIGINAL o COPIA' }) }).default('ORIGINAL'),
     folios: campos.folios.default(1),
+    // Flujo de trabajo con el que arranca el trámite del radicado; es opcional.
+    flujoId: uuid('El flujo').nullable().optional(),
   })
   .strict();
 
