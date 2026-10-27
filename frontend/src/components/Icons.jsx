@@ -105,3 +105,17 @@ export const IconBandeja = (p) => (
     <path d="M3.5 13h4.2l1.5 2.4h5.6l1.5-2.4h4.2" />
   </Svg>
 )
+
+/* Clip: adjuntar un archivo a un documento. */
+export const IconAdjuntar = (p) => (
+  <Svg {...p}>
+    <path d="M20 11.4 12.6 19a4.6 4.6 0 0 1-6.5-6.5l7.7-7.7a3.1 3.1 0 0 1 4.4 4.4l-7.6 7.6a1.6 1.6 0 0 1-2.2-2.2l6.9-6.9" />
+  </Svg>
+)
+
+/* Flecha hacia abajo sobre una línea: descargar. */
+export const IconDescargar = (p) => (
+  <Svg {...p}>
+    <path d="M12 3.5v11" /><path d="M7.5 10.5 12 15l4.5-4.5" /><path d="M4.5 19.5h15" />
+  </Svg>
+)

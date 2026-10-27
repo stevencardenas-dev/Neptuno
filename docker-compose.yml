@@ -121,12 +121,20 @@ services:
       JWT_SECRETO: ${JWT_SECRETO:?Define JWT_SECRETO en .env (mínimo 32 caracteres)}
       USUARIOS_URL: http://servicio-usuarios:8081
       WORKFLOW_URL: http://servicio-workflow:8084
+      # Los anexos viven en MinIO.
+      MINIO_HOST: minio
+      MINIO_PUERTO: "9000"
+      MINIO_USUARIO: ${MINIO_USUARIO:?Define MINIO_USUARIO en .env}
+      MINIO_CLAVE: ${MINIO_CLAVE:?Define MINIO_CLAVE en .env}
+      MINIO_BUCKET: ${MINIO_BUCKET:-neptuno-anexos}
       CLAVE_SERVICIOS: ${CLAVE_SERVICIOS:?Define CLAVE_SERVICIOS en .env}
       RABBIT_HOST: rabbitmq
       RABBIT_USUARIO: ${RABBIT_USUARIO:-neptuno}
       RABBIT_CLAVE: ${RABBIT_CLAVE:?Define RABBIT_CLAVE en .env}
     depends_on:
       db-documentos:
+        condition: service_healthy
+      minio:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -149,6 +157,31 @@ services:
       timeout: 5s
       retries: 12
       start_period: 60s
+    restart: unless-stopped
+
+  # --- Almacén de objetos de los anexos (HU-025…HU-029) ---
+  # Imagen de Silo, el fork mantenido de MinIO: MinIO retiró sus imágenes oficiales
+  # (Docker Hub y Quay) en 2026 y ya no se pueden descargar. El protocolo es el mismo
+  # y el cliente `minio` de servicio-documentos funciona sin cambios.
+  minio:
+    image: pgsty/minio:RELEASE.2026-06-18T00-00-00Z
+    container_name: neptuno-minio
+    mem_limit: 256m
+    command: ["server", "/data", "--address", ":9000", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USUARIO:?Define MINIO_USUARIO en .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_CLAVE:?Define MINIO_CLAVE en .env}
+    ports:
+      # Solo la consola, y solo desde la propia máquina; el API de objetos es interno.
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
     restart: unless-stopped
 
   # --- ms-audit-infra: bitácora inalterable (HU-043…HU-047) ---
@@ -255,4 +288,5 @@ volumes:
   db-documentos-data:
   db-auditoria-data:
   db-workflow-data:
+  minio-data:
   rabbitmq-data:

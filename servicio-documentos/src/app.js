@@ -3,9 +3,11 @@ import { ErrorApi, noEncontrado } from './errores.js';
 import { autenticar, exigirClaveServicios } from './seguridad.js';
 import { crearServicioRadicados } from './radicados/servicio.js';
 import { crearRutasRadicados } from './radicados/rutas.js';
+import { crearServicioAnexos } from './anexos/servicio.js';
+import { crearRutasAnexos } from './anexos/rutas.js';
 import { crearRutasInternas } from './interno/rutas.js';
 
-export function crearApp({ config, repo, catalogos, workflow, comprobarSalud = async () => {}, ahora }) {
+export function crearApp({ config, repo, repoAnexos, almacen, catalogos, workflow, comprobarSalud = async () => {}, ahora }) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '100kb' }));
@@ -29,6 +31,9 @@ export function crearApp({ config, repo, catalogos, workflow, comprobarSalud = a
   const api = express.Router();
   api.use(autenticar(config.jwt));
   api.use('/radicados', crearRutasRadicados(servicio));
+  if (repoAnexos && almacen) {
+    api.use(crearRutasAnexos(crearServicioAnexos({ repo: repoAnexos, almacen })));
+  }
   app.use('/api/documentos', api);
 
   app.use((_req, _res, next) => next(noEncontrado('La ruta no existe.')));

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, KV, Modal, Note, PageHead } from '../components/ui.jsx'
 import { usePeticion } from '../api/usePeticion.js'
 import { crearRadicado, editarRadicado, listarRadicados, obtenerRadicado } from '../api/documentos.js'
+import { AnexosRadicado } from '../components/AnexosRadicado.jsx'
 import { listarAreas, listarEntidades, listarTiposDocumentales } from '../api/catalogos.js'
 import { flujosDisponibles, iniciarTramite, tramiteDeRadicado } from '../api/workflow.js'
 import { useSesion } from '../sesion/SesionProvider.jsx'
@@ -149,6 +150,12 @@ function DetalleRadicado({ id, tipos, areas, entidades, onCerrar, onEditar, onEn
               <p>{r.comentarios}</p>
             </div>
           ) : null}
+
+          <AnexosRadicado
+            radicadoId={r.id}
+            puedeCargar={puede('anexos:cargar')}
+            puedeEliminar={puede('anexos:eliminar')}
+          />
 
           <TramiteRadicado radicadoId={r.id} estado={r.estado} onEnviar={onEnviarFlujo} />
         </div>

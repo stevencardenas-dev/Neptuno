@@ -1,11 +1,13 @@
 import mysql from 'mysql2/promise';
 import { crearApp } from './app.js';
+import { crearAlmacen } from './almacen.js';
 import { crearClienteCatalogos } from './catalogos.js';
 import { cargarConfig } from './config.js';
 import { crearPublicador } from './eventos.js';
 import { migrar } from './migrar.js';
 import { crearClienteWorkflow } from './workflow.js';
 import { crearRepositorioMysql } from './radicados/repositorio-mysql.js';
+import { crearRepositorioAnexos } from './anexos/repositorio-mysql.js';
 
 const config = cargarConfig();
 
@@ -20,9 +22,12 @@ await migrar(pool);
 
 const repo = crearRepositorioMysql(pool);
 const publicador = crearPublicador({ repo, config: config.eventos });
+const almacen = crearAlmacen(config.almacen);
 const app = crearApp({
   config,
   repo,
+  repoAnexos: crearRepositorioAnexos(pool),
+  almacen,
   catalogos: crearClienteCatalogos(config.usuariosUrl),
   workflow: crearClienteWorkflow(config.workflowUrl),
   comprobarSalud: () => pool.query('select 1'),

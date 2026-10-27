@@ -87,15 +87,17 @@ function renovarAcceso() {
   return renovacionEnCurso
 }
 
-function enviar(ruta, { metodo, cuerpo, parametros, base = BASE }) {
+function enviar(ruta, { metodo, cuerpo, parametros, base = BASE, crudo, cabeceras = {} }) {
   const token = tokenActual()
   return fetch(conParametros(`${base}${ruta}`, parametros), {
     method: metodo,
     headers: {
       ...(cuerpo ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...cabeceras,
     },
-    body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+    // `crudo` es el archivo tal cual (un Blob): los anexos viajan como cuerpo binario.
+    body: crudo ?? (cuerpo ? JSON.stringify(cuerpo) : undefined),
   })
 }
 
@@ -106,12 +108,13 @@ function enviar(ruta, { metodo, cuerpo, parametros, base = BASE }) {
  * y repite la petición; solo si eso falla la sesión se da por perdida.
  *
  * @param {string} ruta      ruta relativa al prefijo, p. ej. `/usuarios`
- * @param {object} opciones  `metodo`, `cuerpo` (se serializa a JSON), `parametros`
- *                           y `base` (prefijo del servicio; usuarios por defecto)
+ * @param {object} opciones  `metodo`, `cuerpo` (se serializa a JSON), `parametros`,
+ *                           `crudo` (un Blob que viaja como cuerpo tal cual),
+ *                           `cabeceras` extra y `base` (prefijo del servicio)
  * @returns {Promise<any>}   cuerpo de la respuesta, o null si fue 204
  */
-export async function peticion(ruta, { metodo = 'GET', cuerpo, parametros, base = BASE } = {}) {
-  const opciones = { metodo, cuerpo, parametros, base }
+export async function peticion(ruta, { metodo = 'GET', cuerpo, parametros, base = BASE, crudo, cabeceras } = {}) {
+  const opciones = { metodo, cuerpo, parametros, base, crudo, cabeceras }
   let respuesta = await enviar(ruta, opciones)
 
   if (respuesta.status === 401 && !RUTAS_SIN_RENOVACION.includes(ruta) && await renovarAcceso()) {
@@ -127,7 +130,11 @@ export async function peticion(ruta, { metodo = 'GET', cuerpo, parametros, base 
   if (respuesta.status === 204) return null
 
   const tipo = respuesta.headers.get('content-type') ?? ''
-  const datos = tipo.includes('application/json') ? await respuesta.json() : null
+  // Algunas rutas responden JSON vacío (`null` o cuerpo en blanco): se tolera y se
+  // entrega null en vez de romper la vista con un error de lectura.
+  const datos = tipo.includes('application/json')
+    ? await respuesta.json().catch(() => null)
+    : null
 
   if (!respuesta.ok) {
     throw new ErrorApi({
@@ -139,4 +146,45 @@ export async function peticion(ruta, { metodo = 'GET', cuerpo, parametros, base 
   }
 
   return datos
+}
+
+/** Nombre del archivo que anuncia la respuesta, con el `filename*` (UTF-8) primero. */
+function nombreDe(respuesta) {
+  const cabecera = respuesta.headers.get('content-disposition') ?? ''
+  const extendido = /filename\*=UTF-8''([^;]+)/i.exec(cabecera)
+  if (extendido) {
+    try {
+      return decodeURIComponent(extendido[1])
+    } catch {
+      /* el nombre venía mal codificado: se prueba con el simple */
+    }
+  }
+  const simple = /filename="?([^";]+)"?/i.exec(cabecera)
+  return simple ? simple[1] : 'anexo'
+}
+
+/**
+ * Descarga un archivo del servicio y lo entrega como Blob, renovando el token si hace
+ * falta (mismo criterio que `peticion`, que solo sabe leer JSON).
+ */
+export async function descargar(ruta, { base = BASE } = {}) {
+  const opciones = { metodo: 'GET', base }
+  let respuesta = await enviar(ruta, opciones)
+
+  if (respuesta.status === 401 && await renovarAcceso()) {
+    respuesta = await enviar(ruta, opciones)
+  }
+  if (respuesta.status === 401) {
+    limpiarSesion()
+    window.dispatchEvent(new Event(EVENTO_SESION_PERDIDA))
+  }
+  if (!respuesta.ok) {
+    throw new ErrorApi({
+      estado: respuesta.status,
+      codigo: 'DESCARGA',
+      mensaje: 'No se pudo descargar el archivo.',
+    })
+  }
+
+  return { blob: await respuesta.blob(), nombre: nombreDe(respuesta) }
 }
