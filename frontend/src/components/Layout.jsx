@@ -3,7 +3,7 @@ import { alternarTema, temaActual } from '../util/tema.js'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useSesion } from '../sesion/SesionProvider.jsx'
 import {
-  IconConfig, IconDocumentos, IconEscudo, IconFlujo, IconResumen, IconRoles, IconSalir, IconTridente, IconUsuarios,
+  IconBandeja, IconConfig, IconDocumentos, IconEscudo, IconFlujo, IconResumen, IconRoles, IconSalir, IconTridente, IconUsuarios,
 } from './Icons.jsx'
 
 // Cada vista con `permiso` solo se ofrece si la sesión trae ese permiso (HU-013).
@@ -23,6 +23,7 @@ const grupos = [
   {
     titulo: 'Flujo de trabajo',
     enlaces: [
+      { to: '/app/bandeja', label: 'Bandeja', Icono: IconBandeja, permiso: 'flujo:aprobar' },
       { to: '/app/flujos', label: 'Flujos', Icono: IconFlujo, permiso: 'flujos:administrar' },
     ],
   },
@@ -49,6 +50,7 @@ const secciones = {
   '/app': 'Inicio',
   '/app/radicacion': 'Radicación',
   '/app/flujos': 'Flujo de trabajo',
+  '/app/bandeja': 'Flujo de trabajo',
   '/app/bitacora': 'Auditoría',
   '/app/usuarios': 'Administración',
   '/app/roles': 'Administración',

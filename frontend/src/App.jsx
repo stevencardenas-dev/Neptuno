@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Layout from './components/Layout.jsx'
 import Bitacora from './pages/Bitacora.jsx'
+import Bandeja from './pages/Bandeja.jsx'
 import Configuracion from './pages/Configuracion.jsx'
 import DisenadorFlujo from './pages/DisenadorFlujo.jsx'
 import Flujos from './pages/Flujos.jsx'
@@ -43,6 +44,7 @@ function App() {
       <Route path="/app" element={<RequiereSesion><Layout /></RequiereSesion>}>
         <Route index element={<Panel />} />
         <Route path="radicacion" element={<RequierePermiso permiso="radicados:consultar"><Radicacion /></RequierePermiso>} />
+        <Route path="bandeja" element={<RequierePermiso permiso="flujo:aprobar"><Bandeja /></RequierePermiso>} />
         <Route path="flujos" element={<RequierePermiso permiso="flujos:administrar"><Flujos /></RequierePermiso>} />
         <Route path="flujos/:id" element={<RequierePermiso permiso="flujos:administrar"><DisenadorFlujo /></RequierePermiso>} />
         <Route path="usuarios" element={<RequierePermiso permiso="usuarios:consultar"><Usuarios /></RequierePermiso>} />

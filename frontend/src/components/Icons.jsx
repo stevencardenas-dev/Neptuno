@@ -96,3 +96,12 @@ export const IconOjoTachado = (p) => (
 
 /* Chevron: señala que una fila lleva a otra vista. */
 export const IconFlecha = (p) => (<Svg {...p}><path d="M9.5 5.5l7 6.5-7 6.5" /></Svg>)
+
+/* Bandeja de entrada: las tareas de flujo que esperan a una persona. */
+export const IconBandeja = (p) => (
+  <Svg {...p}>
+    <path d="M3.5 13 6.3 5a2 2 0 0 1 1.9-1.4h7.6A2 2 0 0 1 17.7 5l2.8 8" />
+    <path d="M3.5 13v5a2.4 2.4 0 0 0 2.4 2.4h12.2A2.4 2.4 0 0 0 20.5 18v-5" />
+    <path d="M3.5 13h4.2l1.5 2.4h5.6l1.5-2.4h4.2" />
+  </Svg>
+)

@@ -129,3 +129,23 @@ export function iniciarTramite(datos) {
 export function tramiteDeRadicado(radicadoId) {
   return peticion(`/tramites/radicado/${radicadoId}`, { base: BASE_WORKFLOW })
 }
+
+/** HU-063: tareas que la sesión puede atender ahora mismo. */
+export function listarBandeja() {
+  return peticion('/bandeja', { base: BASE_WORKFLOW })
+}
+
+/** HU-063: detalle con el recorrido y las acciones disponibles. */
+export function consultarTramite(id) {
+  return peticion(`/tramites/${id}`, { base: BASE_WORKFLOW })
+}
+
+/** HU-070: tomar la tarea en exclusiva. */
+export function tomarTarea(id) {
+  return peticion(`/tareas/${id}/tomar`, { metodo: 'POST', base: BASE_WORKFLOW })
+}
+
+/** HU-066…HU-068: aprobar, enviar, devolver o cancelar. */
+export function ejecutarTarea(id, datos) {
+  return peticion(`/tareas/${id}/ejecutar`, { metodo: 'POST', cuerpo: datos, base: BASE_WORKFLOW })
+}
