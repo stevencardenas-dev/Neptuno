@@ -1,47 +1,149 @@
 import { z } from 'zod';
-import { esId } from '../disenador/modelo';
+import type { Accion, TipoSujeto } from '../disenador/modelo';
 
-const id = (campo: string) =>
-  z
-    .string({ required_error: `${campo} es obligatorio.`, invalid_type_error: `${campo} no es válido.` })
-    .refine(esId, `${campo} no es válido.`);
+/**
+ * Bandeja de entrada (HU-062…HU-074).
+ *
+ * Un trámite es la ejecución de una versión publicada sobre un radicado. En cada paso
+ * hay una tarea pendiente; el responsable del paso (usuario, rol, área o grupo) la ve en
+ * su bandeja, la toma en exclusiva y ejecuta una de las transiciones definidas.
+ */
+
+export const ACCIONES_TAREA = ['APROBAR', 'DEVOLVER', 'CANCELAR', 'ENVIAR'] as const;
+export type AccionTarea = (typeof ACCIONES_TAREA)[number];
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const identificador = (campo: string) =>
+  z.string({ required_error: `${campo} es obligatorio.` }).refine((valor) => UUID.test(valor), `${campo} no es válido.`);
 
 /** Los tipos documentales que atiende un flujo. Lista vacía = el flujo no se ofrece al radicar. */
 export const esquemaTiposDocumentales = z.object({
   tipoDocumentalIds: z
-    .array(id('El tipo documental'), { required_error: 'Indica los tipos documentales.' })
+    .array(identificador('El tipo documental'), { required_error: 'Indica los tipos documentales.' })
     .max(50, 'Un flujo no puede atender más de 50 tipos documentales.'),
 });
 
-/** Lo que envía ms-document-management al radicar un documento con flujo. */
+/**
+ * HU-062: enviar un radicado a un flujo publicado. Lo usan la pantalla de radicación y
+ * servicio-documentos al radicar con flujo; este último envía además `radicadoCodigo` y
+ * `tipoDocumentalId`, que se aceptan y se descartan: la fuente de verdad es el radicado
+ * que el workflow lee de servicio-documentos por la API interna.
+ */
 export const esquemaIniciar = z.object({
-  radicadoId: id('El radicado'),
-  radicadoCodigo: z
-    .string({ required_error: 'El código del radicado es obligatorio.' })
-    .trim()
-    .min(1, 'El código del radicado es obligatorio.')
-    .max(40, 'El código del radicado no puede superar 40 caracteres.'),
-  flujoId: id('El flujo'),
-  tipoDocumentalId: id('El tipo documental'),
+  radicadoId: identificador('El radicado'),
+  flujoId: identificador('El flujo'),
 });
+
+/** HU-066…HU-068: la acción y su observación. Devolver y cancelar la exigen. */
+export const esquemaEjecutar = z
+  .object({
+    accion: z.enum(ACCIONES_TAREA, {
+      required_error: 'La acción es obligatoria.',
+      invalid_type_error: 'La acción debe ser Aprobar, Devolver, Cancelar o Enviar.',
+    }),
+    observacion: z
+      .string({ invalid_type_error: 'La observación debe ser texto.' })
+      .trim()
+      .max(2000, 'La observación no puede superar 2000 caracteres.')
+      .nullish(),
+  })
+  .strict()
+  .refine((datos) => !['DEVOLVER', 'CANCELAR'].includes(datos.accion) || (datos.observacion ?? '').length >= 3, {
+    message: 'Devolver o cancelar exige una observación de al menos 3 caracteres.',
+    path: ['observacion'],
+  });
+
 export type IniciarTramite = z.infer<typeof esquemaIniciar>;
 
+/** Flujo entre los que puede elegir quien radica un documento de ese tipo. */
 export interface FlujoDisponible {
   id: string;
   nombre: string;
   descripcion: string | null;
   versionId: string;
 }
+export type EjecutarTarea = z.infer<typeof esquemaEjecutar>;
 
-export interface Tramite {
+/** Un responsable del paso, tal como lo guardó el diseñador. */
+export interface ResponsablePaso {
+  tipoSujeto: TipoSujeto;
+  sujetoId: string;
+}
+
+/** Una acción que se puede ejecutar desde el paso actual. */
+export interface AccionDisponible {
+  transicionId: string;
+  accion: Accion;
+  etiqueta: string;
+  destinoId: string;
+  destinoNombre: string;
+}
+
+/** Fila de la bandeja de entrada. */
+export interface TareaBandeja {
+  id: string;
+  tramiteId: string;
+  radicadoId: string;
+  radicadoCodigo: string;
+  radicadoAsunto: string;
+  flujoId: string;
+  flujoNombre: string;
+  paso: { id: string; nombre: string; tipo: string };
+  estado: 'PENDIENTE' | 'TOMADA';
+  asignadaA: string | null;
+  tomadaEn: Date | null;
+  creadaEn: Date;
+  venceEn: Date | null;
+  vencida: boolean;
+  esMia: boolean;
+  /** El actor no es responsable del paso pero administra flujos (supervisión). */
+  supervision: boolean;
+  responsables: ResponsablePaso[];
+  acciones: AccionDisponible[];
+}
+
+export interface MovimientoTramite {
+  id: string;
+  accion: string;
+  observacion: string | null;
+  usuarioId: string;
+  usuarioCorreo: string | null;
+  ocurridoEn: Date;
+  origen: string | null;
+  destino: string;
+}
+
+export interface TramiteDetalle {
   id: string;
   radicadoId: string;
   radicadoCodigo: string;
+  radicadoAsunto: string;
   flujoId: string;
   flujoNombre: string;
+  /** Versión del flujo con la que nació el trámite (HU-079). */
   versionId: string;
+  /** Paso actual: `estadoActualId` y `estadoActual` repiten `pasoActual` para los clientes previos. */
   estadoActualId: string;
   estadoActual: string;
-  estado: 'EN_CURSO' | 'FINALIZADO' | 'CANCELADO';
-  iniciadoEn: string;
+  estado: string;
+  iniciadoEn: Date;
+  venceEn: Date | null;
+  finalizadoEn: Date | null;
+  pasoActual: { id: string; nombre: string; tipo: string };
+  tareaAbierta: TareaBandeja | null;
+  movimientos: MovimientoTramite[];
+}
+
+/** ¿El actor atiende este paso? Sin responsables, el paso es de bolsa común. */
+export function esResponsable(
+  actor: { id: string; areaId?: string; rolesIds: string[] },
+  responsables: ResponsablePaso[],
+): boolean {
+  if (!responsables.length) return true;
+  return responsables.some((responsable) => {
+    if (responsable.tipoSujeto === 'USUARIO') return responsable.sujetoId === actor.id;
+    if (responsable.tipoSujeto === 'AREA') return responsable.sujetoId === actor.areaId;
+    if (responsable.tipoSujeto === 'ROL') return actor.rolesIds.includes(responsable.sujetoId);
+    return false;
+  });
 }

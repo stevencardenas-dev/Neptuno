@@ -23,6 +23,7 @@ export function cargarConfig() {
     },
     usuariosUrl: process.env.USUARIOS_URL ?? 'http://localhost:8081',
     workflowUrl: process.env.WORKFLOW_URL ?? 'http://localhost:8084',
+    claveServicios: process.env.CLAVE_SERVICIOS ?? null,
     eventos: {
       publicar: (process.env.PUBLICAR_EVENTOS ?? 'true') === 'true',
       url: `amqp://${rabbitUsuario}:${rabbitClave}@${process.env.RABBIT_HOST ?? 'localhost'}:${process.env.RABBIT_PORT ?? 5672}`,

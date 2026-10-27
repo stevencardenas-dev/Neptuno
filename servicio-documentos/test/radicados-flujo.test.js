@@ -102,3 +102,69 @@ describe('radicación con flujo de trabajo', () => {
     assert.match(radicado.advertencia, /no pudo iniciarse/);
   });
 });
+
+// El camino completo de origen: documentos radica y pide el trámite; servicio-workflow,
+// antes de responder, lee el radicado y lo marca EN_TRAMITE por la API interna de este
+// mismo servicio. El doble de workflow hace esas dos llamadas de verdad.
+describe('radicación con flujo y vuelta por la API interna', () => {
+  const CLAVE = 'clave-entre-servicios-de-pruebas';
+  let servidor, raiz, leidos;
+
+  const interno = (ruta, init = {}) =>
+    fetch(`${raiz}/api/documentos/interno${ruta}`, {
+      ...init,
+      headers: { 'X-Servicio-Clave': CLAVE, 'Content-Type': 'application/json', ...init.headers },
+    });
+
+  const workflow = {
+    async flujosDisponibles() { return [{ id: FLUJO, nombre: 'Compras' }]; },
+    async iniciarTramite(datos) {
+      const radicado = await (await interno(`/radicados/${datos.radicadoId}`)).json();
+      leidos.push(radicado);
+      const marcado = await interno(`/radicados/${datos.radicadoId}/estado`, {
+        method: 'PATCH',
+        body: JSON.stringify({ estado: 'EN_TRAMITE' }),
+      });
+      assert.equal(marcado.status, 200);
+      return { id: 'tramite-2', radicadoId: radicado.id, estadoActual: 'Recepción' };
+    },
+  };
+
+  before(async () => {
+    const app = crearApp({
+      config: { jwt: { secreto: SECRETO, emisor: EMISOR }, claveServicios: CLAVE },
+      repo: crearRepositorioMemoria(),
+      catalogos,
+      workflow,
+    });
+    await new Promise((ok) => { servidor = app.listen(0, ok); });
+    raiz = `http://127.0.0.1:${servidor.address().port}`;
+  });
+  after(() => servidor.close());
+
+  it('el workflow lee el radicado recién creado y lo deja EN_TRAMITE', async () => {
+    leidos = [];
+    const respuesta = await fetch(`${raiz}/api/documentos/radicados`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(cuerpo({ flujoId: FLUJO })),
+    });
+    const radicado = await respuesta.json();
+    assert.equal(respuesta.status, 201);
+    assert.equal(leidos.length, 1);
+    assert.equal(leidos[0].estado, 'RADICADO');
+    assert.equal(leidos[0].tipoDocumentalId, TIPO);
+    assert.equal(leidos[0].codigo, radicado.codigo);
+    // Lo que se devuelve es el radicado vigente, no la copia de antes del trámite.
+    assert.equal(radicado.estado, 'EN_TRAMITE');
+    assert.equal(radicado.tramite.id, 'tramite-2');
+    assert.equal(radicado.advertencia, undefined);
+  });
+
+  it('la API interna exige la clave de servicio', async () => {
+    const respuesta = await fetch(`${raiz}/api/documentos/interno/radicados/${TIPO}`, {
+      headers: { 'X-Servicio-Clave': 'otra-clave' },
+    });
+    assert.equal(respuesta.status, 403);
+  });
+});

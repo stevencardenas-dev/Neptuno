@@ -73,16 +73,21 @@ export function crearServicioRadicados({ repo, catalogos, workflow = null, ahora
       if (!flujoId) return radicado;
 
       // El radicado ya existe y su código no se puede reutilizar: si el trámite no arranca no
-      // se deshace nada, se avisa. El trámite es único por radicado, así que reintentarlo es seguro.
+      // se deshace nada, se avisa. Solo puede haber un trámite en curso por radicado, así que
+      // reintentarlo es seguro.
+      let tramite;
       try {
-        const tramite = await workflow.iniciarTramite(
+        tramite = await workflow.iniciarTramite(
           { radicadoId: radicado.id, radicadoCodigo: radicado.codigo, flujoId, tipoDocumentalId: datos.tipoDocumentalId },
           actor.token,
         );
-        return { ...radicado, tramite };
       } catch (error) {
         return { ...radicado, tramite: null, advertencia: `El documento se radicó, pero el trámite no pudo iniciarse: ${error.message}` };
       }
+      // Al abrir el trámite, servicio-workflow ya pasó el radicado a EN_TRAMITE por la API
+      // interna: se relee para devolver el estado y la versión vigentes.
+      const vigente = (await repo.obtener(radicado.id)) ?? radicado;
+      return { ...vigente, tramite };
     },
 
     /** HU-020 */
@@ -119,6 +124,30 @@ export function crearServicioRadicados({ repo, catalogos, workflow = null, ahora
         version,
         { ...cambios, actualizadoPor: actor.id, actualizadoEn: ahora() },
         evento('radicado.editado', actor, (r) => `Se editaron los metadatos del radicado ${r.codigo}`),
+      );
+    },
+
+    /**
+     * Cambio de estado pedido por servicio-workflow (API interna): al iniciar un
+     * trámite el radicado pasa a EN_TRAMITE y al cerrarlo, a FINALIZADO. Si el trámite
+     * se cancela vuelve a RADICADO para que se pueda enviar a otro flujo.
+     */
+    async cambiarEstadoSistema(id, estado) {
+      const actual = await this.obtener(id);
+      const permitidos = {
+        RADICADO: ['EN_TRAMITE', 'ANULADO'],
+        EN_TRAMITE: ['FINALIZADO', 'RADICADO', 'ANULADO'],
+        FINALIZADO: [],
+        ANULADO: [],
+      }[actual.estado] ?? [];
+      if (!permitidos.includes(estado)) {
+        throw reglaInvalida(`El radicado ${actual.codigo} no puede pasar de ${actual.estado} a ${estado}.`);
+      }
+      const sistema = { id: null, correo: 'servicio-workflow' };
+      return repo.cambiarEstado(
+        id,
+        estado,
+        evento('radicado.estado', sistema, (r) => `El radicado ${r.codigo} pasó al estado ${estado}.`),
       );
     },
   };

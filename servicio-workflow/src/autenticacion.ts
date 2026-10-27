@@ -10,14 +10,18 @@ import { Inject } from '@nestjs/common';
 const importar = new Function('modulo', 'return import(modulo)') as (modulo: string) => Promise<any>;
 
 export const PERMISO = 'permiso';
-/** Marca un manejador con el permiso que exige, igual que `@PreAuthorize` en los otros servicios. */
-export const RequierePermiso = (codigo: string) => SetMetadata(PERMISO, codigo);
+/**
+ * Marca un manejador con el permiso que exige, igual que `@PreAuthorize` en los otros
+ * servicios. Con varios códigos basta con tener uno de ellos.
+ */
+export const RequierePermiso = (...codigos: string[]) => SetMetadata(PERMISO, codigos);
 
 export interface Actor {
   id: string;
   correo: string;
   areaId?: string;
   roles: string[];
+  rolesIds: string[];
   permisos: Set<string>;
 }
 
@@ -72,11 +76,14 @@ export class AutenticacionGuard implements CanActivate {
       correo: payload.correo,
       areaId: payload.areaId,
       roles: payload.roles ?? [],
+      rolesIds: payload.rolesIds ?? [],
       permisos: new Set<string>(payload.permisos ?? []),
     } satisfies Actor;
 
-    const permiso = this.reflector.getAllAndOverride<string>(PERMISO, [contexto.getHandler(), contexto.getClass()]);
-    if (permiso && !peticion.actor.permisos.has(permiso)) throw prohibido(`Requiere el permiso ${permiso}.`);
+    const permisos = this.reflector.getAllAndOverride<string[]>(PERMISO, [contexto.getHandler(), contexto.getClass()]);
+    if (permisos?.length && !permisos.some((codigo) => peticion.actor.permisos.has(codigo))) {
+      throw prohibido(`Requiere el permiso ${permisos.join(' o ')}.`);
+    }
     return true;
   }
 }

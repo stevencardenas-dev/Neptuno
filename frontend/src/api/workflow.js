@@ -112,3 +112,20 @@ export function asignarTiposDeFlujo(id, tipoDocumentalIds) {
 export function flujosDisponibles(tipoDocumentalId) {
   return peticion('/flujos-disponibles', { parametros: { tipoDocumentalId }, base: BASE_WORKFLOW })
 }
+
+/**
+ * Trámites y bandeja de entrada (HU-062…HU-074).
+ *
+ * Un trámite es un radicado recorriendo un flujo publicado. La bandeja devuelve solo las
+ * tareas del paso en el que el usuario es responsable; quien administra flujos las ve todas.
+ */
+
+/** HU-062: abrir el trámite; el radicado queda en el paso inicial. */
+export function iniciarTramite(datos) {
+  return peticion('/tramites', { metodo: 'POST', cuerpo: datos, base: BASE_WORKFLOW })
+}
+
+/** El trámite que tiene un radicado, si alguno. */
+export function tramiteDeRadicado(radicadoId) {
+  return peticion(`/tramites/radicado/${radicadoId}`, { base: BASE_WORKFLOW })
+}

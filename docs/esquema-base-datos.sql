@@ -438,6 +438,7 @@ create table movimiento_tramite (
     accion             varchar(16)   not null,
     observacion        varchar(2000) null,
     usuario_id         binary(16)    not null,
+    usuario_correo     varchar(160)  null comment 'Copia al mover: se muestra en el recorrido del trámite',
     ocurrido_en        datetime(6)   not null,
     primary key (id),
     constraint fk_movimiento_tramite foreign key (tramite_id) references tramite (id),

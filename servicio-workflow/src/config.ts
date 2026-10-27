@@ -14,6 +14,8 @@ export interface Config {
   db: { host: string; port: number; database: string; user: string; password: string };
   /** Catálogo de usuarios (roles y áreas) que se validan al asignar responsables (HU-059). */
   catalogos: { url: string };
+  /** servicio-documentos: resumen del radicado y cambio de estado al abrir/cerrar trámite. */
+  documentos: { url: string; clave: string };
   eventos: {
     publicar: boolean;
     url: string;
@@ -40,6 +42,10 @@ export function cargarConfig(): Config {
       password: requerida('DB_CLAVE'),
     },
     catalogos: { url: (process.env.USUARIOS_URL ?? 'http://localhost:8081').replace(/\/$/, '') },
+    documentos: {
+      url: (process.env.DOCUMENTOS_URL ?? 'http://localhost:8082').replace(/\/$/, ''),
+      clave: requerida('CLAVE_SERVICIOS'),
+    },
     eventos: {
       publicar: (process.env.PUBLICAR_EVENTOS ?? 'true') === 'true',
       url: `amqp://${rabbitUsuario}:${rabbitClave}@${process.env.RABBIT_HOST ?? 'localhost'}:${process.env.RABBIT_PORT ?? 5672}`,

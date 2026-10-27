@@ -76,6 +76,7 @@ public class ServicioTokens {
                 .claim("areaId", usuario.getArea().getId().toString())
                 .claim("area", usuario.getArea().getNombre())
                 .claim("roles", usuario.nombresRoles())
+                .claim("rolesIds", usuario.idsRoles())
                 .claim("rolPrincipal", usuario.rolPrincipal());
         if (tipo == TipoToken.ACCESO) {
             claims.claim("permisos", permisos);

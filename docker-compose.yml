@@ -121,6 +121,7 @@ services:
       JWT_SECRETO: ${JWT_SECRETO:?Define JWT_SECRETO en .env (mínimo 32 caracteres)}
       USUARIOS_URL: http://servicio-usuarios:8081
       WORKFLOW_URL: http://servicio-workflow:8084
+      CLAVE_SERVICIOS: ${CLAVE_SERVICIOS:?Define CLAVE_SERVICIOS en .env}
       RABBIT_HOST: rabbitmq
       RABBIT_USUARIO: ${RABBIT_USUARIO:-neptuno}
       RABBIT_CLAVE: ${RABBIT_CLAVE:?Define RABBIT_CLAVE en .env}
@@ -218,6 +219,8 @@ services:
       DB_CLAVE: ${DB_CLAVE:?Define DB_CLAVE en .env}
       JWT_SECRETO: ${JWT_SECRETO:?Define JWT_SECRETO en .env (mínimo 32 caracteres)}
       USUARIOS_URL: http://servicio-usuarios:8081
+      DOCUMENTOS_URL: http://servicio-documentos:8082
+      CLAVE_SERVICIOS: ${CLAVE_SERVICIOS:?Define CLAVE_SERVICIOS en .env}
       RABBIT_HOST: rabbitmq
       RABBIT_USUARIO: ${RABBIT_USUARIO:-neptuno}
       RABBIT_CLAVE: ${RABBIT_CLAVE:?Define RABBIT_CLAVE en .env}

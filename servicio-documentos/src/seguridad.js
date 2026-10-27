@@ -1,4 +1,5 @@
 import { jwtVerify } from 'jose';
+import { timingSafeEqual } from 'node:crypto';
 import { noAutenticado, prohibido } from './errores.js';
 
 // Valida el JWT de acceso emitido por servicio-usuarios (HS256, mismo secreto) y deja
@@ -31,3 +32,16 @@ export function autenticar({ secreto, emisor }) {
 
 export const requierePermiso = (codigo) => (req, _res, next) =>
   req.actor.permisos.has(codigo) ? next() : next(prohibido(`Requiere el permiso ${codigo}.`));
+
+/**
+ * Autoriza las llamadas entre microservicios con la cabecera `X-Servicio-Clave`.
+ * La comparación es en tiempo constante para no filtrar la clave carácter a carácter.
+ */
+export function exigirClaveServicios(clave) {
+  const esperada = Buffer.from(clave);
+  return (req, _res, next) => {
+    const recibida = Buffer.from(req.get('x-servicio-clave') ?? '');
+    const igual = recibida.length === esperada.length && timingSafeEqual(recibida, esperada);
+    next(igual ? undefined : prohibido('La clave de servicio no es válida.'));
+  };
+}
