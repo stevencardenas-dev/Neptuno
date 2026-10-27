@@ -3,6 +3,8 @@ import { ErrorApi, noEncontrado } from './errores.js';
 import { autenticar } from './seguridad.js';
 import { crearServicioRadicados } from './radicados/servicio.js';
 import { crearRutasRadicados } from './radicados/rutas.js';
+import { crearRutasInternas } from './interno/rutas.js';
+import { exigirClaveServicios } from './seguridad.js';
 
 export function crearApp({ config, repo, catalogos, comprobarSalud = async () => {}, ahora }) {
   const app = express();
@@ -19,6 +21,12 @@ export function crearApp({ config, repo, catalogos, comprobarSalud = async () =>
   });
 
   const servicio = crearServicioRadicados({ repo, catalogos, ahora });
+
+  // Las rutas internas se montan antes que la API con JWT: no usan token de usuario.
+  if (config.claveServicios) {
+    app.use('/api/documentos/interno', exigirClaveServicios(config.claveServicios), crearRutasInternas(servicio));
+  }
+
   const api = express.Router();
   api.use(autenticar(config.jwt));
   api.use('/radicados', crearRutasRadicados(servicio));

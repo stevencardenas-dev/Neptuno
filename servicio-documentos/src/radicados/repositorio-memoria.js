@@ -68,6 +68,15 @@ export function crearRepositorioMemoria() {
       return copia(nuevo);
     },
 
+    async cambiarEstado(id, estado, fabricaEvento) {
+      const actual = radicados.get(id);
+      if (!actual) throw noEncontrado('El radicado no existe.');
+      const nuevo = { ...actual, estado, version: actual.version + 1, actualizadoEn: new Date() };
+      radicados.set(id, nuevo);
+      registrarEvento(fabricaEvento, nuevo);
+      return copia(nuevo);
+    },
+
     async eventosPendientes(limite) {
       return eventos.filter((e) => e.estadoPublicacion === 'PENDIENTE').slice(0, limite);
     },

@@ -108,7 +108,7 @@ public class DatosIniciales implements ApplicationRunner {
                 TipoRol.OPERATIVO, List.of(
                         "radicados:consultar", "radicados:crear", "radicados:editar", "anexos:cargar", "anexos:eliminar",
                         CatalogoPermisos.RADICADOS_RADICAR_RECIBIDO, "radicados:clase", "expediente:ver",
-                        CatalogoPermisos.CATALOGOS_CONSULTAR));
+                        "flujo:iniciar", CatalogoPermisos.CATALOGOS_CONSULTAR));
         sembrarRol("Tesorero", "Gestiona pagos, valida cuentas de cobro y aprueba documentos financieros.",
                 TipoRol.OPERATIVO, List.of(
                         "radicados:consultar", "radicados:editar", "flujo:aprobar", "expediente:ver",

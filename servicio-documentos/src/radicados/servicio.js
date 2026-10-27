@@ -78,8 +78,7 @@ export function crearServicioRadicados({ repo, catalogos, ahora = () => new Date
       return repo.buscar(filtros);
     },
 
-    /** HU-021, HU-039, HU-040: edita los metadatos; el código nunca cambia. */
-    async editar(actor, id, cuerpo) {
+    /** HU-021, HU-039, HU-040: edita los metadatos; el código nunca cambia. */    async editar(actor, id, cuerpo) {
       const { version, ...cambios } = validar(esquemaEditar, cuerpo);
       const actual = await this.obtener(id);
       if (actual.estado === 'ANULADO') throw reglaInvalida('Un radicado anulado no se puede editar.');
@@ -96,6 +95,30 @@ export function crearServicioRadicados({ repo, catalogos, ahora = () => new Date
         version,
         { ...cambios, actualizadoPor: actor.id, actualizadoEn: ahora() },
         evento('radicado.editado', actor, (r) => `Se editaron los metadatos del radicado ${r.codigo}`),
+      );
+    },
+
+    /**
+     * Cambio de estado pedido por servicio-workflow (API interna): al iniciar un
+     * trámite el radicado pasa a EN_TRAMITE y al cerrarlo, a FINALIZADO. Si el trámite
+     * se cancela vuelve a RADICADO para que se pueda enviar a otro flujo.
+     */
+    async cambiarEstadoSistema(id, estado) {
+      const actual = await this.obtener(id);
+      const permitidos = {
+        RADICADO: ['EN_TRAMITE', 'ANULADO'],
+        EN_TRAMITE: ['FINALIZADO', 'RADICADO', 'ANULADO'],
+        FINALIZADO: [],
+        ANULADO: [],
+      }[actual.estado] ?? [];
+      if (!permitidos.includes(estado)) {
+        throw reglaInvalida(`El radicado ${actual.codigo} no puede pasar de ${actual.estado} a ${estado}.`);
+      }
+      const sistema = { id: null, correo: 'servicio-workflow' };
+      return repo.cambiarEstado(
+        id,
+        estado,
+        evento('radicado.estado', sistema, (r) => `El radicado ${r.codigo} pasó al estado ${estado}.`),
       );
     },
   };

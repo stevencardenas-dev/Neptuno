@@ -118,6 +118,11 @@ public class Usuario {
         return roles.stream().map(Rol::getNombre).sorted().toList();
     }
 
+    /** Identificadores de los roles: la bandeja los compara con los responsables de un paso. */
+    public List<String> idsRoles() {
+        return roles.stream().map(rol -> rol.getId().toString()).sorted().toList();
+    }
+
     /** Rol que se muestra en la sesión: Administrador si lo tiene; si no, el primero alfabéticamente. */
     public String rolPrincipal() {
         List<String> nombres = nombresRoles();

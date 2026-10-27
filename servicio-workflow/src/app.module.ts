@@ -4,9 +4,10 @@ import { PublicadorEventos } from './eventos';
 import { FlujosModule } from './flujos/modulo';
 import { NucleoModule } from './nucleo.module';
 import { SaludControlador } from './salud.controlador';
+import { TramitesModule } from './tramites/modulo';
 
 @Module({
-  imports: [NucleoModule, FlujosModule, DisenadorModule],
+  imports: [NucleoModule, FlujosModule, DisenadorModule, TramitesModule],
   controllers: [SaludControlador],
   providers: [PublicadorEventos],
 })

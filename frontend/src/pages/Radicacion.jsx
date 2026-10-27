@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, KV, Modal, Note, PageHead } from '../components/ui.jsx'
 import { usePeticion } from '../api/usePeticion.js'
 import { crearRadicado, editarRadicado, listarRadicados, obtenerRadicado } from '../api/documentos.js'
+import { iniciarTramite, listarFlujosPublicados, tramiteDeRadicado } from '../api/workflow.js'
 import { listarAreas, listarEntidades, listarTiposDocumentales } from '../api/catalogos.js'
 import { useSesion } from '../sesion/SesionProvider.jsx'
 import {
@@ -10,7 +11,7 @@ import {
   etiquetaOrigen, formatearDia, formatearFecha, hoyLocal, soloDia,
 } from '../util/formato.js'
 import {
-  IconEditar, IconEscudo, IconFiltro, IconInfo, IconMas, IconOjo,
+  IconEditar, IconEscudo, IconFiltro, IconFlujo, IconInfo, IconMas, IconOjo,
 } from '../components/Icons.jsx'
 
 const TAMANIO = 10
@@ -43,8 +44,44 @@ function DistintivoEstado({ estado }) {
   )
 }
 
+/** Estado del trámite de un radicado y puerta para enviarlo a un flujo (HU-062). */
+function TramiteRadicado({ radicadoId, estado, onEnviar }) {
+  const { puede } = useSesion()
+  const consulta = usePeticion(() => tramiteDeRadicado(radicadoId), [radicadoId])
+  const tramite = consulta.datos
+  const puedeIniciar = puede('flujo:iniciar') && estado === 'RADICADO'
+
+  return (
+    <div className="dato">
+      <span className="k">Flujo de trabajo</span>
+      {consulta.cargando ? <p className="muted small">Consultando el trámite…</p> : null}
+      {!consulta.cargando && consulta.error ? (
+        <p className="muted small">No se pudo consultar el trámite del radicado.</p>
+      ) : null}
+      {tramite ? (
+        <div className="stack" style={{ gap: 4 }}>
+          <p><strong>{tramite.flujoNombre}</strong> · {tramite.pasoActual.nombre}</p>
+          <span className="muted small">
+            {tramite.estado === 'EN_CURSO' ? 'En curso' : tramite.estado === 'FINALIZADO' ? 'Finalizado' : 'Cancelado'}
+            {' · '}iniciado el {formatearFecha(tramite.iniciadoEn)}
+          </span>
+        </div>
+      ) : (!consulta.cargando ? (
+        <p className="muted small">Este radicado todavía no está en un flujo de trabajo.</p>
+      ) : null)}
+      {puedeIniciar && !consulta.cargando && (!tramite || tramite.estado === 'CANCELADO') ? (
+        <div>
+          <button className="btn secondary sm" type="button" onClick={onEnviar}>
+            <IconFlujo size={15} /> {tramite ? 'Enviar otra vez a un flujo' : 'Enviar a un flujo'}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 /** HU-020: detalle del radicado, consultado al abrirlo para no fiarse de la fila. */
-function DetalleRadicado({ id, tipos, areas, entidades, onCerrar, onEditar }) {
+function DetalleRadicado({ id, tipos, areas, entidades, onCerrar, onEditar, onEnviarFlujo }) {
   const consulta = usePeticion(() => obtenerRadicado(id), [id])
   const r = consulta.datos
   const navegar = useNavigate()
@@ -112,6 +149,9 @@ function DetalleRadicado({ id, tipos, areas, entidades, onCerrar, onEditar }) {
               <p>{r.comentarios}</p>
             </div>
           ) : null}
+
+
+          <TramiteRadicado radicadoId={r.id} estado={r.estado} onEnviar={onEnviarFlujo} />
         </div>
       ) : null}
     </Modal>
@@ -119,7 +159,7 @@ function DetalleRadicado({ id, tipos, areas, entidades, onCerrar, onEditar }) {
 }
 
 /** HU-017…HU-021, HU-024, HU-039, HU-040: metadatos del radicado. */
-function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, error, onCerrar, onGuardar }) {
+function FormularioRadicado({ radicado, tipos, areas, entidades, flujos, guardando, error, onCerrar, onGuardar }) {
   const esEdicion = Boolean(radicado)
   const { puede } = useSesion()
   const puedeRecibido = puede('radicados:radicar-recibido')
@@ -136,6 +176,8 @@ function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, erro
   const [fechaDocumento, setFechaDocumento] = useState(soloDia(radicado?.fechaDocumento) || hoyLocal())
   const [folios, setFolios] = useState(radicado?.folios ?? 1)
   const [comentarios, setComentarios] = useState(radicado?.comentarios ?? '')
+  // HU-062: al radicar se puede enviar el documento al paso inicial de un flujo.
+  const [flujoId, setFlujoId] = useState('')
 
   // HU-018: el tipo documental declara qué orígenes admite; el servicio rechaza el resto.
   const tiposDisponibles = activos(tipos, tipoDocumentalId).filter((tipo) => (tipo.origenes ?? []).includes(origen))
@@ -172,7 +214,7 @@ function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, erro
       datos.origen = origen
       datos.clase = clase
     }
-    onGuardar(datos)
+    onGuardar(datos, esEdicion ? null : flujoId)
   }
 
   return (
@@ -342,6 +384,88 @@ function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, erro
           />
         </div>
 
+        {!esEdicion && flujos?.length && puede('flujo:iniciar') ? (
+          <div className="field">
+            <label htmlFor="radicado-flujo">Enviar a un flujo de trabajo</label>
+            <select id="radicado-flujo" value={flujoId} onChange={(e) => setFlujoId(e.target.value)}>
+              <option value="">Dejarlo solo radicado</option>
+              {(flujos ?? []).map((flujo) => (
+                <option key={flujo.id} value={flujo.id}>{flujo.nombre}</option>
+              ))}
+            </select>
+            <span className="hint">
+              Si eliges un flujo, el radicado pasa a su primer paso y aparece en la bandeja del responsable.
+            </span>
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="error-message">
+            {error.message}
+            {error.detalles?.length ? (
+              <div className="detalles">
+                {error.detalles.map((detalle) => <span key={detalle}>· {detalle}</span>)}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </form>
+    </Modal>
+  )
+}
+
+/** HU-062: elegir el flujo al que se envía un radicado ya registrado. */
+function ModalEnviarFlujo({ radicado, flujos, onCerrar, onEnviar }) {
+  const [flujoId, setFlujoId] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState(null)
+  const disponibles = flujos ?? []
+
+  async function enviar(evento) {
+    evento.preventDefault()
+    if (!flujoId) return
+    setEnviando(true)
+    setError(null)
+    try {
+      await onEnviar(flujoId)
+      onCerrar()
+    } catch (fallo) {
+      setError(fallo)
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <Modal
+      open
+      title="Enviar a un flujo de trabajo"
+      sub={`${radicado.codigo} · ${radicado.asunto}`}
+      onClose={onCerrar}
+      ancho="560px"
+      footer={[
+        <button key="c" className="btn secondary" type="button" onClick={onCerrar}>Cancelar</button>,
+        <button key="e" className="btn" type="submit" form="form-flujo-destino" disabled={!flujoId || enviando}>
+          {enviando ? 'Enviando…' : 'Enviar al flujo'}
+        </button>,
+      ]}
+    >
+      <form id="form-flujo-destino" className="stack" onSubmit={enviar}>
+        <div className="field">
+          <label htmlFor="flujo-destino">Flujo publicado <span className="req">*</span></label>
+          <select id="flujo-destino" value={flujoId} onChange={(e) => setFlujoId(e.target.value)}>
+            <option value="">Selecciona el flujo…</option>
+            {disponibles.map((flujo) => (
+              <option key={flujo.id} value={flujo.id}>{flujo.nombre}</option>
+            ))}
+          </select>
+          {!disponibles.length ? (
+            <span className="hint">No hay flujos publicados todavía. Publica uno en «Flujos» antes de enviar radicados.</span>
+          ) : (
+            <span className="hint">El radicado pasa al paso inicial del flujo y aparece en la bandeja de su responsable.</span>
+          )}
+        </div>
+
         {error ? (
           <div className="error-message">
             {error.message}
@@ -369,6 +493,7 @@ export default function Radicacion() {
   const [modal, setModal] = useState(null)
   const [guardando, setGuardando] = useState(false)
   const [errorAccion, setErrorAccion] = useState(null)
+  const [enviandoAFlujo, setEnviandoAFlujo] = useState(null)
 
   const radicados = usePeticion(() => listarRadicados({
     codigo: fCodigo, q: fTexto, origen: fOrigen, tipoDocumentalId: fTipo, estado: fEstado,
@@ -380,6 +505,11 @@ export default function Radicacion() {
   const tipos = usePeticion(() => listarTiposDocumentales(), [])
   const areas = usePeticion(() => listarAreas(), [])
   const entidades = usePeticion(() => listarEntidades(), [])
+  // Solo se piden los flujos si la sesión puede iniciar trámites (HU-062).
+  const flujos = usePeticion(
+    () => (puede('flujo:iniciar') ? listarFlujosPublicados() : Promise.resolve([])),
+    [],
+  )
 
   const lista = radicados.datos?.contenido ?? []
   const total = radicados.datos?.total ?? 0
@@ -393,12 +523,25 @@ export default function Radicacion() {
     setPagina(0)
   }
 
-  async function guardar(datos) {
+  async function guardar(datos, flujoId) {
     setGuardando(true)
     setErrorAccion(null)
     try {
-      if (modal?.modo === 'editar') await editarRadicado(modal.radicado.id, datos)
-      else await crearRadicado(datos)
+      if (modal?.modo === 'editar') {
+        await editarRadicado(modal.radicado.id, datos)
+      } else {
+        const creado = await crearRadicado(datos)
+        // El radicado ya existe: si el envío al flujo falla, se informa sin perderlo.
+        if (flujoId) {
+          try {
+            await iniciarTramite({ radicadoId: creado.id, flujoId })
+          } catch (fallo) {
+            setErrorAccion(new Error(
+              `El radicado ${creado.codigo} se creó, pero no se pudo enviar al flujo: ${fallo.message}`,
+            ))
+          }
+        }
+      }
       setModal(null)
       radicados.recargar()
     } catch (fallo) {
@@ -406,6 +549,13 @@ export default function Radicacion() {
     } finally {
       setGuardando(false)
     }
+  }
+
+  /** HU-062: enviar un radicado existente al paso inicial del flujo elegido. */
+  async function enviarAFlujo(radicadoId, flujoId) {
+    await iniciarTramite({ radicadoId, flujoId })
+    radicados.recargar()
+    setDetalle(radicadoId)
   }
 
   return (
@@ -566,6 +716,11 @@ export default function Radicacion() {
             setDetalle(null)
             if (radicado) setModal({ modo: 'editar', radicado })
           } : null}
+          onEnviarFlujo={() => {
+            const radicado = lista.find((fila) => fila.id === detalle) ?? null
+            setDetalle(null)
+            if (radicado) setEnviandoAFlujo(radicado)
+          }}
         />
       ) : null}
 
@@ -575,10 +730,20 @@ export default function Radicacion() {
           tipos={tipos.datos}
           areas={areas.datos}
           entidades={entidades.datos}
+          flujos={flujos.datos}
           guardando={guardando}
           error={errorAccion}
           onCerrar={() => { setModal(null); setErrorAccion(null) }}
           onGuardar={guardar}
+        />
+      ) : null}
+
+      {enviandoAFlujo ? (
+        <ModalEnviarFlujo
+          radicado={enviandoAFlujo}
+          flujos={flujos.datos}
+          onCerrar={() => setEnviandoAFlujo(null)}
+          onEnviar={(flujoId) => enviarAFlujo(enviandoAFlujo.id, flujoId)}
         />
       ) : null}
     </>

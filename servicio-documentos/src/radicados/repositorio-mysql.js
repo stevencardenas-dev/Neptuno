@@ -158,6 +158,23 @@ export function crearRepositorioMysql(pool) {
       });
     },
 
+    // El workflow cambia el estado cuando el radicado entra o sale de un trámite.
+    // No toca los metadatos ni el código: solo el estado y el rastro de actualización.
+    async cambiarEstado(id, estado, fabricaEvento) {
+      return enTransaccion(async (cx) => {
+        const [resultado] = await cx.execute(
+          `update radicado
+              set estado = ?, actualizado_en = ?, version = version + 1
+            where id = ?`,
+          [estado, new Date(), aBuffer(id)],
+        );
+        if (resultado.affectedRows === 0) throw noEncontrado('El radicado no existe.');
+        const radicado = await leer(cx, id);
+        await insertarEvento(cx, fabricaEvento, radicado);
+        return radicado;
+      });
+    },
+
     async eventosPendientes(limite) {
       const [filas] = await pool.query(
         `select * from evento_saliente where estado_publicacion = 'PENDIENTE' order by ocurrido_en limit ?`,

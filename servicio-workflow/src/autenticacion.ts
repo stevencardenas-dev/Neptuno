@@ -18,6 +18,7 @@ export interface Actor {
   correo: string;
   areaId?: string;
   roles: string[];
+  rolesIds: string[];
   permisos: Set<string>;
 }
 
@@ -72,6 +73,7 @@ export class AutenticacionGuard implements CanActivate {
       correo: payload.correo,
       areaId: payload.areaId,
       roles: payload.roles ?? [],
+      rolesIds: payload.rolesIds ?? [],
       permisos: new Set<string>(payload.permisos ?? []),
     } satisfies Actor;
 
