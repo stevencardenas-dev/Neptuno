@@ -5,6 +5,15 @@ import type { Config } from './config';
 
 export const POOL = 'POOL';
 
+/** Errores de MySQL que indican que esa sentencia de DDL ya se había aplicado antes. */
+const YA_APLICADO = new Set([
+  1050, // la tabla ya existe
+  1060, // la columna ya existe
+  1061, // el índice ya existe
+  1091, // el índice o la columna que se borra ya no existe
+  1826, // la restricción ya existe
+]);
+
 export function crearPool(config: Config): Pool {
   return mysql.createPool({
     ...config.db,
@@ -17,9 +26,12 @@ export function crearPool(config: Config): Pool {
 // Migrador mínimo, igual que el de servicio-documentos: aplica en orden
 // db/migrations/V<n>__*.sql una sola vez cada uno y deja constancia en schema_migraciones.
 // El lock evita que dos réplicas migren a la vez.
-export async function migrar(pool: Pool, registro = console): Promise<void> {
+export async function migrar(
+  pool: Pool,
+  registro = console,
+  directorio = path.join(__dirname, '..', 'db', 'migrations'),
+): Promise<void> {
   const cx = await pool.getConnection();
-  const directorio = path.join(__dirname, '..', 'db', 'migrations');
   try {
     await cx.query("select get_lock('migraciones_workflow', 30)");
     await cx.query(`create table if not exists schema_migraciones (
@@ -41,7 +53,14 @@ export async function migrar(pool: Pool, registro = console): Promise<void> {
         .split(/;\s*\n/)
         .map((s) => s.replace(/^\s*--.*$/gm, '').trim())
         .filter(Boolean)) {
-        await cx.query(sentencia);
+        try {
+          await cx.query(sentencia);
+        } catch (error: any) {
+          // MySQL confirma el DDL sentencia a sentencia: si una migración se corta a medias,
+          // el reintento repite lo ya aplicado. Lo que "ya existe" se salta para poder terminarla.
+          if (!YA_APLICADO.has(error?.errno)) throw error;
+          registro.warn?.(`${archivo}: ya estaba aplicado (${error.sqlMessage ?? error.message}); se continúa.`);
+        }
       }
       await cx.query('insert into schema_migraciones (version, nombre) values (?, ?)', [version, archivo]);
       registro.info(`Migración aplicada: ${archivo}`);

@@ -6,19 +6,20 @@
 -- Corre igual sobre una base vacía (V1, V2, V3) que sobre una con trámites de V2: al
 -- final rellena lo que esos trámites no tenían.
 
-alter table tramite
-    add column radicado_asunto varchar(300) not null default '' comment 'Copia de lectura para la bandeja' after radicado_codigo,
-    add column flujo_nombre varchar(120) not null default '' comment 'Copia de lectura para la bandeja' after flujo_id,
-    add column vence_en datetime(6) null comment 'HU-072: iniciado_en + sla_global_minutos' after iniciado_en,
-    add column finalizado_en datetime(6) null after vence_en,
-    add column version int not null default 0 comment 'Bloqueo optimista (HU-071)' after finalizado_en,
-    add column radicado_en_curso_id binary(16) generated always as (case when estado = 'EN_CURSO' then radicado_id end) stored after version;
+-- Una sentencia por cambio: MySQL confirma el DDL solo y no hay transacción que lo deshaga,
+-- así que si la migración se corta a medias el reintento salta lo ya aplicado (ver db.ts)
+-- y cada cambio tiene que poder repetirse por separado.
+alter table tramite add column radicado_asunto varchar(300) not null default '' comment 'Copia de lectura para la bandeja' after radicado_codigo;
+alter table tramite add column flujo_nombre varchar(120) not null default '' comment 'Copia de lectura para la bandeja' after flujo_id;
+alter table tramite add column vence_en datetime(6) null comment 'HU-072: iniciado_en + sla_global_minutos' after iniciado_en;
+alter table tramite add column finalizado_en datetime(6) null after vence_en;
+alter table tramite add column version int not null default 0 comment 'Bloqueo optimista (HU-071)' after finalizado_en;
+alter table tramite add column radicado_en_curso_id binary(16) generated always as (case when estado = 'EN_CURSO' then radicado_id end) stored after version;
 
 -- Un radicado tiene como mucho un trámite EN CURSO: si se cancela, se puede reenviar.
-alter table tramite
-    add constraint uk_tramite_radicado_en_curso unique (radicado_en_curso_id),
-    add index ix_tramite_radicado (radicado_id),
-    add index ix_tramite_flujo (flujo_id, estado);
+alter table tramite add constraint uk_tramite_radicado_en_curso unique (radicado_en_curso_id);
+alter table tramite add index ix_tramite_radicado (radicado_id);
+alter table tramite add index ix_tramite_flujo (flujo_id, estado);
 
 alter table tramite drop index uk_tramite_radicado;
 
