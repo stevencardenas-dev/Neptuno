@@ -6,6 +6,26 @@
 -- Corre igual sobre una base vacía (V1, V2, V3) que sobre una con trámites de V2: al
 -- final rellena lo que esos trámites no tenían.
 
+-- Producción llegó a tener una V2 distinta de la de origin: la tabla tramite con
+-- flujo_version_id y sin flujo_tipo_documental. Esta migración la deja igual en los dos casos.
+-- El nombre de la columna se corrige solo si hace falta (la clave foránea se mueve con ella).
+set @renombrar = (select if(count(*) = 1, 'alter table tramite rename column flujo_version_id to version_id', 'select 1')
+                    from information_schema.columns
+                   where table_schema = database() and table_name = 'tramite' and column_name = 'flujo_version_id');
+prepare renombrar from @renombrar;
+execute renombrar;
+deallocate prepare renombrar;
+
+create table if not exists flujo_tipo_documental (
+    flujo_id            binary(16)  not null,
+    tipo_documental_id  binary(16)  not null,
+    asociado_por        binary(16)  null,
+    asociado_en         datetime(6) not null,
+    primary key (flujo_id, tipo_documental_id),
+    key ix_flujo_tipo_documental_tipo (tipo_documental_id),
+    constraint fk_flujo_tipo_documental_flujo foreign key (flujo_id) references flujo (id) on delete cascade
+) engine = InnoDB default charset = utf8mb4;
+
 -- Una sentencia por cambio: MySQL confirma el DDL solo y no hay transacción que lo deshaga,
 -- así que si la migración se corta a medias el reintento salta lo ya aplicado (ver db.ts)
 -- y cada cambio tiene que poder repetirse por separado.
