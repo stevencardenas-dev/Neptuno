@@ -39,7 +39,7 @@ test.describe('Autenticación (HU-001, HU-002)', () => {
     // El menú cambió con el rediseño: además de administración aparecen radicación,
     // flujo de trabajo y auditoría, y solo se ofrece lo que el rol puede hacer.
     await expect(enlacesDelMenu(page)).toHaveText([
-      'Panel', 'Radicados', 'Flujos', 'Bitácora', 'Usuarios', 'Roles y permisos', 'Parámetros',
+      'Panel', 'Radicados', 'Bandeja', 'Flujos', 'Bitácora', 'Usuarios', 'Roles y permisos', 'Parámetros',
     ])
 
     // Las 5 métricas van en una sola fila en escritorio y no se ven como texto subrayado.
@@ -52,7 +52,7 @@ test.describe('Autenticación (HU-001, HU-002)', () => {
 
   test('las rutas que no existen vuelven al panel', async ({ page }) => {
     await iniciarSesion(page)
-    for (const ruta of ['/app/bandeja', '/no-existe']) {
+    for (const ruta of ['/app/expediente', '/no-existe']) {
       await page.goto(ruta)
       await expect(page).toHaveURL(/\/app$/)
     }
@@ -60,7 +60,7 @@ test.describe('Autenticación (HU-001, HU-002)', () => {
 
   test('el administrador abre las vistas nuevas de radicación y de flujos', async ({ page }) => {
     await iniciarSesion(page)
-    for (const [ruta, titulo] of [['/app/radicacion', 'Radicación'], ['/app/flujos', 'Flujos']]) {
+    for (const [ruta, titulo] of [['/app/radicacion', 'Radicación'], ['/app/bandeja', 'Bandeja de entrada'], ['/app/flujos', 'Flujos']]) {
       await page.goto(ruta)
       await expect(page).toHaveURL(new RegExp(`${ruta}$`))
       await expect(page.getByRole('heading', { name: titulo }).first()).toBeVisible()
