@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { randomUUID } from 'node:crypto';
+import { readdirSync } from 'node:fs';
 import mysql from 'mysql2/promise';
 import { migrar } from '../src/migrar.js';
 import { crearRepositorioMysql } from '../src/radicados/repositorio-mysql.js';
@@ -43,7 +44,9 @@ describe('repositorio MySQL', { skip: !activo && 'define PRUEBA_MYSQL_HOST para 
   it('la migración es idempotente', async () => {
     await migrar(pool, { info() {} });
     const [[{ n }]] = await pool.query('select count(*) n from schema_migraciones');
-    assert.equal(n, 1);
+    // Una fila por archivo V<n>__*.sql: la prueba no se desactualiza al añadir migraciones.
+    const esperadas = readdirSync(new URL('../db/migrations', import.meta.url)).filter((f) => /^V\d+__.+\.sql$/.test(f)).length;
+    assert.equal(n, esperadas);
   });
 
   it('asigna consecutivos únicos y sin saltos con inserciones simultáneas', async () => {
