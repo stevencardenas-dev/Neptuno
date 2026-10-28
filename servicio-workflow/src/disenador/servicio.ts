@@ -18,6 +18,7 @@ import {
   TipoEstado,
   TransicionCrear,
   TransicionEditar,
+  VersionResumen,
 } from './modelo';
 import { RepositorioDisenador } from './repositorio';
 import { validarPublicacion } from './validacion';
@@ -37,11 +38,26 @@ export class ServicioDisenador {
   ) {}
 
   /** HU-052: los pasos, las transiciones y el sitio de cada paso en el lienzo. */
-  async grafo(id: string): Promise<Grafo> {
+  async grafo(id: string, version?: string): Promise<Grafo> {
     this.exigirId(id);
-    const grafo = await this.repo.grafo(id);
+    const grafo = await this.repo.grafo(id, numeroDeVersion(version));
     if (!grafo) throw noEncontrado('No existe un flujo con ese identificador.');
     return grafo;
+  }
+
+  /** HU-080: las versiones del flujo con su estado, su autor y su fecha. */
+  async versiones(id: string): Promise<VersionResumen[]> {
+    this.exigirId(id);
+    const versiones = await this.repo.versiones(id);
+    if (!versiones) throw noEncontrado('No existe un flujo con ese identificador.');
+    return versiones;
+  }
+
+  /** Descarta el borrador abierto sobre un flujo publicado y vuelve al lienzo en operación. */
+  async descartarBorrador(id: string, actor: Actor): Promise<Grafo> {
+    this.exigirId(id);
+    await this.repo.descartarBorrador(id, autor(actor));
+    return this.grafo(id);
   }
 
   /** HU-053: agregar un paso. */
@@ -190,6 +206,15 @@ export class ServicioDisenador {
     }
     return analisis.data as T;
   }
+}
+
+/** HU-080: `?version=N` pide el lienzo de una versión; sin él, el de trabajo. */
+function numeroDeVersion(version: string | undefined): number | undefined {
+  if (version === undefined || version === '') return undefined;
+  if (!/^\d{1,9}$/.test(version) || Number(version) < 1) {
+    throw datosInvalidos('El número de versión debe ser un entero positivo.');
+  }
+  return Number(version);
 }
 
 /** Deja en el evento solo lo que la bitácora necesita del actor. */

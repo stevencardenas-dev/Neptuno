@@ -136,8 +136,9 @@ al paquete del frontend; el paquete completo hoy pesa 367 KB.
 
 ## 8. Lo que queda deliberadamente por fuera
 
-- **HU-080 (historial de versiones)**: HU-078 ya crea versiones nuevas; falta la consulta
-  de las versiones anteriores con su fecha y autor.
+- **Versionado**: HU-078 crea versiones nuevas y HU-080 las lista con su fecha y autor; cualquier
+  versión se consulta en solo lectura con `?version=N` y solo el borrador se edita. El
+  borrador abierto sobre un flujo publicado se puede descartar; la primera versión no.
 - **HU-069 (usuario, grupo o rol)**: falta el catálogo de usuarios y grupos para validar
   responsables.
 - **HU-050 (guardia de trámites en curso)**: el backlog pide no archivar un flujo con
