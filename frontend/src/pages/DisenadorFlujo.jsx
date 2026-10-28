@@ -929,6 +929,10 @@ export default function DisenadorFlujo() {
         </Card>
       </div>
 
+      <div className="mt-16">
+        <TiposDocumentalesFlujo flujoId={id} />
+      </div>
+
       {versiones.length ? (
         <div className="mt-16">
           <Card title="Historial de versiones" sub="Quién y cuándo creó y publicó cada versión" icono={<IconFlujo size={17} />}>
@@ -978,10 +982,6 @@ export default function DisenadorFlujo() {
           </Card>
         </div>
       ) : null}
-
-      <div className="mt-16">
-        <TiposDocumentalesFlujo flujoId={id} />
-      </div>
 
       <Modal
         open={confirmar === 'borrador'}
