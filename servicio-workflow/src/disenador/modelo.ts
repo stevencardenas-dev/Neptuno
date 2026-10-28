@@ -161,6 +161,20 @@ export interface VersionDeTrabajo {
   estado: string;
 }
 
+/** HU-080: una fila del historial de versiones de un flujo. */
+export interface VersionResumen {
+  id: string;
+  numero: number;
+  estado: string;
+  /** Es la que usan los trámites nuevos. */
+  vigente: boolean;
+  pasos: number;
+  creadoPor: string | null;
+  creadoEn: string | null;
+  publicadoPor: string | null;
+  publicadoEn: string | null;
+}
+
 /** HU-052: todo lo que el lienzo necesita para dibujar el flujo de un vistazo. */
 export interface Grafo {
   flujoId: string;

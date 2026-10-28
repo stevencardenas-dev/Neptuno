@@ -130,3 +130,28 @@ test('crear una versión devuelve el lienzo del borrador', async () => {
   assert.equal(resultado.version?.numero, 2);
   assert.equal(resultado.editable, true);
 });
+
+// HU-080: el lienzo acepta `?version=N`; un valor que no es un entero positivo se rechaza
+// antes de consultar nada, y uno válido llega al repositorio como número.
+
+test('el lienzo de una versión valida el número que llega en la consulta', async () => {
+  const { ServicioDisenador } = await import('../src/disenador/servicio');
+  const pedidos: Array<number | undefined> = [];
+  const repo = { grafo: async (_id: string, numero?: number) => (pedidos.push(numero), { flujoId: uuid(5) }) } as any;
+  const servicio = new ServicioDisenador(repo, {} as any);
+  for (const invalido of ['0', '-1', 'abc', '1.5', '99999999999']) {
+    await assert.rejects(servicio.grafo(uuid(5), invalido), (e: any) => e.getStatus() === 400);
+  }
+  assert.deepEqual(pedidos, []);
+  await servicio.grafo(uuid(5), '2');
+  await servicio.grafo(uuid(5));
+  assert.deepEqual(pedidos, [2, undefined]);
+});
+
+test('el historial y el descarte del borrador exigen un flujo existente', async () => {
+  const { ServicioDisenador } = await import('../src/disenador/servicio');
+  const repo = { versiones: async () => null } as any;
+  const servicio = new ServicioDisenador(repo, {} as any);
+  await assert.rejects(servicio.versiones(uuid(5)), (e: any) => e.getStatus() === 404);
+  await assert.rejects(servicio.versiones('no-es-uuid'), (e: any) => e.getStatus() === 404);
+});

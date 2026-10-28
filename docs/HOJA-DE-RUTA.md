@@ -87,7 +87,7 @@ para que los trámites en curso no cambien de camino.
 | HU-075…HU-077 | Estados que exigen firma, firma electrónica y consulta de firmas |
 | HU-078 | Crear una versión nueva en borrador copiando la publicada (`POST /flujos/{id}/versiones`) (implementado) |
 | HU-079 | Los trámites en curso conservan su versión: cada trámite guarda su `version_id` (implementado como regla del motor) |
-| HU-080 | Historial de versiones con fecha y autor (pendiente) |
+| HU-080 | Historial de versiones con fecha y autor (`GET /flujos/{id}/versiones`) y consulta de cualquier versión en solo lectura (`GET /flujos/{id}/grafo?version=N`) (implementado). Además, `DELETE /flujos/{id}/versiones/borrador` descarta el borrador abierto sobre un flujo publicado |
 | HU-083 | Consulta y aprobación desde el celular |
 
 ### ms-audit-infra — Bitácora y requerimientos no funcionales (Go)

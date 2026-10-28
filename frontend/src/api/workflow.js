@@ -35,8 +35,19 @@ export function editarFlujo(id, datos) {
  */
 
 /** HU-052: pasos, transiciones y sitio de cada paso en el lienzo. */
-export function grafoFlujo(id) {
-  return peticion(`/flujos/${id}/grafo`, { base: BASE_WORKFLOW })
+export function grafoFlujo(id, version) {
+  const consulta = version ? `?version=${version}` : ''
+  return peticion(`/flujos/${id}/grafo${consulta}`, { base: BASE_WORKFLOW })
+}
+
+/** HU-080: las versiones del flujo con su estado, su autor y su fecha. */
+export function versionesFlujo(id) {
+  return peticion(`/flujos/${id}/versiones`, { base: BASE_WORKFLOW })
+}
+
+/** Descartar el borrador abierto sobre un flujo publicado. */
+export function descartarBorradorFlujo(id) {
+  return peticion(`/flujos/${id}/versiones/borrador`, { metodo: 'DELETE', base: BASE_WORKFLOW })
 }
 
 /** HU-053: agregar un paso. */

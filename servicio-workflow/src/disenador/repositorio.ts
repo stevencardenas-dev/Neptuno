@@ -18,6 +18,7 @@ import type {
   TransicionCrear,
   TransicionEditar,
   VersionDeTrabajo,
+  VersionResumen,
 } from './modelo';
 
 /**
@@ -93,14 +94,18 @@ export class RepositorioDisenador {
    * HU-052: la definición que hay que dibujar. Si el flujo todavía no tiene versión, el
    * lienzo se muestra vacío (la versión nace con el primer paso).
    */
-  async grafo(id: string): Promise<Grafo | null> {
+  async grafo(id: string, numero?: number): Promise<Grafo | null> {
     const flujo = await this.flujo(id);
     if (!flujo) return null;
-    // Si hay un borrador (la primera versión o una nueva sobre un flujo publicado, HU-078),
-    // es lo que se dibuja y se edita; si no, la versión que está en operación.
+    // Sin número: si hay un borrador (la primera versión o una nueva sobre un flujo
+    // publicado, HU-078) es lo que se dibuja y se edita; si no, la versión en operación.
+    // Con número (HU-080): esa versión, que solo es editable si es el borrador.
     const version =
-      (await this.versionBorradorDeLectura(flujo.id)) ??
-      (flujo.versionActivaId ? await this.versionPorId(flujo.versionActivaId) : null);
+      numero !== undefined
+        ? await this.versionPorNumero(flujo.id, numero)
+        : ((await this.versionBorradorDeLectura(flujo.id)) ??
+          (flujo.versionActivaId ? await this.versionPorId(flujo.versionActivaId) : null));
+    if (numero !== undefined && !version) throw noEncontrado('Ese flujo no tiene esa versión.');
     const enOperacion = flujo.versionActivaId ? await this.versionPorId(flujo.versionActivaId) : null;
     if (!version) {
       return {
@@ -503,6 +508,61 @@ export class RepositorioDisenador {
     return creada;
   }
 
+  /** HU-080: las versiones del flujo, la más reciente primero, con su autor y su fecha. */
+  async versiones(flujoId: string): Promise<VersionResumen[] | null> {
+    const flujo = await this.flujo(flujoId);
+    if (!flujo) return null;
+    const [filas] = await this.pool.query<RowDataPacket[]>(
+      `select bin_to_uuid(v.id) as id, v.numero, v.estado,
+              bin_to_uuid(v.creado_por) as creadoPor, v.creado_en as creadoEn,
+              bin_to_uuid(v.publicado_por) as publicadoPor, v.publicado_en as publicadoEn,
+              (select count(*) from estado_flujo e where e.version_id = v.id) as pasos
+         from flujo_version v
+        where v.flujo_id = uuid_to_bin(?)
+        order by v.numero desc`,
+      [flujoId],
+    );
+    return filas.map((f) => ({
+      id: f.id,
+      numero: Number(f.numero),
+      estado: f.estado,
+      vigente: f.id === flujo.versionActivaId,
+      pasos: Number(f.pasos),
+      creadoPor: f.creadoPor,
+      creadoEn: f.creadoEn ? new Date(f.creadoEn).toISOString() : null,
+      publicadoPor: f.publicadoPor,
+      publicadoEn: f.publicadoEn ? new Date(f.publicadoEn).toISOString() : null,
+    }));
+  }
+
+  /**
+   * Descarta el borrador que se abrió sobre un flujo publicado. La versión en operación
+   * no se toca. Un flujo sin versión publicada no puede descartar su único borrador: no
+   * quedaría nada del flujo.
+   */
+  async descartarBorrador(flujoId: string, actor: Autor): Promise<void> {
+    await enTransaccion(this.pool, async (cx) => {
+      await cx.query('select id from flujo where id = uuid_to_bin(?) for update', [flujoId]);
+      const flujo = await this.flujoDe(cx, flujoId);
+      const borrador = await this.versionBorradorRequerida(cx, flujoId);
+      if (!flujo.versionActivaId) {
+        throw conflicto('Esta es la primera versión del flujo: no se descarta, se edita y se publica.');
+      }
+      // Sin "on delete cascade" desde la versión hacia los pasos: primero las transiciones,
+      // luego los pasos (sus responsables se van en cascada) y al final la versión.
+      await cx.query('delete from transicion where version_id = uuid_to_bin(?)', [borrador.id]);
+      await cx.query('delete from estado_flujo where version_id = uuid_to_bin(?)', [borrador.id]);
+      await cx.query('delete from flujo_version where id = uuid_to_bin(?)', [borrador.id]);
+      await registrarEvento(cx, {
+        tipo: 'flujo.version_descartada',
+        entidad: 'flujo',
+        entidadId: flujoId,
+        actor,
+        detalle: { flujoId, versionId: borrador.id, numero: borrador.numero },
+      });
+    });
+  }
+
   /** HU-061: la versión en borrador queda publicada y pasa a ser la que usan los trámites. */
   async publicar(flujoId: string, actor: Autor): Promise<{ version: VersionDeTrabajo; pasos: number }> {
     let publicada: { version: VersionDeTrabajo; pasos: number } | null = null;
@@ -668,6 +728,15 @@ export class RepositorioDisenador {
         where v.flujo_id = uuid_to_bin(?) and v.estado = 'BORRADOR'
         order by v.numero desc limit 1`,
       [flujoId],
+    );
+    return filas.length ? filas[0]! : null;
+  }
+
+  private async versionPorNumero(flujoId: string, numero: number): Promise<FilaVersion | null> {
+    const [filas] = await this.pool.query<FilaVersion[]>(
+      `select bin_to_uuid(v.id) as id, v.numero, v.estado from flujo_version v
+        where v.flujo_id = uuid_to_bin(?) and v.numero = ?`,
+      [flujoId, numero],
     );
     return filas.length ? filas[0]! : null;
   }

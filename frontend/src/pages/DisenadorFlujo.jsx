@@ -12,6 +12,7 @@ import {
   crearVersionFlujo,
   asignarTiposDeFlujo,
   desactivarFlujo,
+  descartarBorradorFlujo,
   editarPaso,
   grafoFlujo,
   marcarPaso,
@@ -21,7 +22,9 @@ import {
   retirarPaso,
   retirarTransicion,
   tiposDeFlujo,
+  versionesFlujo,
 } from '../api/workflow.js'
+import { formatearFechaHora } from '../util/formato.js'
 import {
   IconCheck,
   IconEditar,
@@ -78,6 +81,21 @@ const ESTADOS_FLUJO = {
   BORRADOR: { etiqueta: 'Borrador', tono: 'gris' },
   ACTIVO: { etiqueta: 'En operación', tono: 'verde' },
   INACTIVO: { etiqueta: 'Archivado', tono: 'ambar' },
+}
+
+const TONO_VERSION = { BORRADOR: 'ambar', PUBLICADA: 'verde', REEMPLAZADA: 'gris' }
+
+function etiquetaEstadoVersion(version) {
+  if (version.estado === 'BORRADOR') return 'Borrador'
+  if (version.vigente) return 'En operación'
+  return 'Reemplazada'
+}
+
+const etiquetaVersion = (version) => `Versión ${version.numero} · ${etiquetaEstadoVersion(version)}`
+
+function nombreUsuario(catalogos, id) {
+  if (!id) return '—'
+  return catalogos.nombres.get(`USUARIO:${id}`) ?? 'Usuario no disponible'
 }
 
 const etiqueta = (lista, valor) => lista.find((item) => item.valor === valor)?.etiqueta ?? valor
@@ -646,6 +664,7 @@ export default function DisenadorFlujo() {
   const [seleccion, setSeleccion] = useState(null)
   const [nuevoPaso, setNuevoPaso] = useState(false)
   const [confirmar, setConfirmar] = useState(null)
+  const [versiones, setVersiones] = useState([])
 
   const roles = usePeticion(() => listarRoles(), [])
   const areas = usePeticion(() => listarAreas({ soloActivas: true }), [])
@@ -654,6 +673,7 @@ export default function DisenadorFlujo() {
   useEffect(() => {
     let vigente = true
     setCargando(true)
+    versionesFlujo(id).then((lista) => vigente && setVersiones(lista)).catch(() => {})
     grafoFlujo(id)
       .then((datos) => {
         if (!vigente) return
@@ -678,12 +698,33 @@ export default function DisenadorFlujo() {
     return { nombres, roles: roles.datos ?? [], areas: areas.datos ?? [], usuarios: personas }
   }, [roles.datos, areas.datos, usuarios.datos])
 
+  /** HU-080: el historial se vuelve a pedir tras cada cambio que pueda crear o cerrar una versión. */
+  function recargarVersiones() {
+    versionesFlujo(id).then(setVersiones).catch(() => {})
+  }
+
+  /** HU-080: mostrar otra versión del flujo; solo el borrador se puede editar. */
+  async function verVersion(numero) {
+    setGuardando(true)
+    setError(null)
+    try {
+      setGrafo(await grafoFlujo(id, numero))
+      setSeleccion(null)
+      setNuevoPaso(false)
+    } catch (fallo) {
+      setError(fallo)
+    } finally {
+      setGuardando(false)
+    }
+  }
+
   /** Cada cambio vuelve con el lienzo ya actualizado: una sola respuesta para todo. */
   async function ejecutar(accion) {
     setGuardando(true)
     setError(null)
     try {
       setGrafo(await accion())
+      recargarVersiones()
       return true
     } catch (fallo) {
       setError(fallo)
@@ -700,6 +741,8 @@ export default function DisenadorFlujo() {
   const paso = grafo.pasos.find((candidato) => candidato.id === seleccion) ?? null
   const soloLectura = !grafo.editable
   const borradorNuevo = !soloLectura && grafo.versionEnOperacion !== null
+  const borradorAbierto = versiones.find((version) => version.estado === 'BORRADOR') ?? null
+  const estaVersion = grafo.version ? versiones.find((version) => version.numero === grafo.version.numero) : null
 
   return (
     <>
@@ -716,7 +759,12 @@ export default function DisenadorFlujo() {
                 <IconCheck size={16} /> Publicar flujo
               </button>
             ) : null}
-            {soloLectura && grafo.estadoFlujo !== 'INACTIVO' ? (
+            {borradorNuevo ? (
+              <button className="btn secondary" type="button" disabled={guardando} onClick={() => setConfirmar('borrador')}>
+                <IconPapelera size={15} /> Descartar borrador
+              </button>
+            ) : null}
+            {soloLectura && grafo.estadoFlujo !== 'INACTIVO' && !borradorAbierto ? (
               <button className="btn" type="button" disabled={guardando} onClick={() => ejecutar(() => crearVersionFlujo(id))}>
                 <IconMas size={16} /> Crear nueva versión
               </button>
@@ -737,6 +785,18 @@ export default function DisenadorFlujo() {
       <div className="row mt-8" style={{ gap: 8, flexWrap: 'wrap' }}>
         <span className={`badge ${estado.tono}`}>{estado.etiqueta}</span>
         {borradorNuevo ? <span className="badge ambar">Editando la versión {grafo.version.numero} (borrador)</span> : null}
+        {versiones.length > 1 && grafo.version ? (
+          <label className="field" style={{ minWidth: 230, marginLeft: 'auto' }}>
+            <span className="k">Ver versión</span>
+            <select value={grafo.version.numero} disabled={guardando} onChange={(e) => verVersion(Number(e.target.value))}>
+              {versiones.map((version) => (
+                <option key={version.id} value={version.numero}>
+                  {etiquetaVersion(version)}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <span className="badge gris">
           {grafo.version ? `Versión ${grafo.version.numero} · ${grafo.pasos.length} paso${grafo.pasos.length === 1 ? '' : 's'} · ${grafo.transiciones.length} transición${grafo.transiciones.length === 1 ? '' : 'es'}` : 'Sin pasos todavía'}
         </span>
@@ -761,9 +821,23 @@ export default function DisenadorFlujo() {
         </div>
       ) : null}
 
-      {soloLectura ? (
+      {soloLectura && borradorAbierto && estaVersion?.estado !== 'BORRADOR' ? (
         <div className="mt-16">
           <Note icono={<IconInfo size={17} />}>
+            Estás consultando la versión {grafo.version.numero}
+            {estaVersion?.vigente ? ', que es la que está en operación' : ', que ya fue reemplazada'}. Hay un
+            borrador abierto (versión {borradorAbierto.numero}): elígelo en «Ver versión» para seguir editándolo.
+          </Note>
+        </div>
+      ) : null}
+
+      {soloLectura && !(borradorAbierto && estaVersion?.estado !== 'BORRADOR') ? (
+        <div className="mt-16">
+          <Note icono={<IconInfo size={17} />}>
+            {estaVersion && !estaVersion.vigente && estaVersion.estado === 'REEMPLAZADA'
+              ? `La versión ${grafo.version.numero} ya fue reemplazada: se consulta, no se edita.`
+              : null}
+            {estaVersion && !estaVersion.vigente && estaVersion.estado === 'REEMPLAZADA' ? ' ' : null}
             Este flujo está publicado: su recorrido no se edita mientras esté en operación, para que los
             trámites que ya empezaron no cambien de camino. Para cambiarlo, crea una versión nueva: se
             abre un borrador con una copia del recorrido y la versión actual sigue en operación hasta que
@@ -857,9 +931,88 @@ export default function DisenadorFlujo() {
         </Card>
       </div>
 
+      {versiones.length ? (
+        <div className="mt-16">
+          <Card title="Historial de versiones" sub="Quién y cuándo creó y publicó cada versión" icono={<IconFlujo size={17} />}>
+            <div className="table-wrap">
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>Versión</th>
+                    <th>Estado</th>
+                    <th>Pasos</th>
+                    <th>Creada</th>
+                    <th>Publicada</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {versiones.map((version) => (
+                    <tr key={version.id}>
+                      <td><strong>Versión {version.numero}</strong></td>
+                      <td>
+                        <span className={`badge ${TONO_VERSION[version.estado] ?? 'gris'}`}>{etiquetaEstadoVersion(version)}</span>
+                      </td>
+                      <td className="muted">{version.pasos}</td>
+                      <td className="muted">
+                        {formatearFechaHora(version.creadoEn)}
+                        <span className="cell-sub">{nombreUsuario(catalogos, version.creadoPor)}</span>
+                      </td>
+                      <td className="muted">
+                        {version.publicadoEn ? formatearFechaHora(version.publicadoEn) : '—'}
+                        {version.publicadoPor ? <span className="cell-sub">{nombreUsuario(catalogos, version.publicadoPor)}</span> : null}
+                      </td>
+                      <td>
+                        <button
+                          className="btn secondary"
+                          type="button"
+                          disabled={guardando || grafo.version?.numero === version.numero}
+                          onClick={() => verVersion(version.numero)}
+                        >
+                          {grafo.version?.numero === version.numero ? 'Viendo' : 'Ver'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
       <div className="mt-16">
         <TiposDocumentalesFlujo flujoId={id} />
       </div>
+
+      <Modal
+        open={confirmar === 'borrador'}
+        title="Descartar el borrador"
+        sub={grafo.version ? `Se elimina la versión ${grafo.version.numero}` : ''}
+        onClose={() => setConfirmar(null)}
+        ancho="560px"
+        footer={[
+          <button key="c" className="btn secondary" type="button" onClick={() => setConfirmar(null)}>Cancelar</button>,
+          <button
+            key="d"
+            className="btn danger"
+            type="button"
+            disabled={guardando}
+            onClick={async () => {
+              await ejecutar(() => descartarBorradorFlujo(id))
+              setConfirmar(null)
+              setSeleccion(null)
+            }}
+          >
+            <IconPapelera size={16} /> Descartar borrador
+          </button>,
+        ]}
+      >
+        <Note tono="rojo" icono={<IconInfo size={17} />}>
+          Se pierden los cambios del borrador. La versión {grafo.versionEnOperacion} sigue en operación y no se toca.
+        </Note>
+        {error ? <div className="error-message mt-16">{error.message}</div> : null}
+      </Modal>
 
       <Modal
         open={confirmar === 'archivar'}

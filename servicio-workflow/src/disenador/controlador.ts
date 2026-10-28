@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Actor, ActorActual, AutenticacionGuard, RequierePermiso, TokenActual } from '../autenticacion';
 import { ServicioDisenador } from './servicio';
 
@@ -18,8 +18,22 @@ export class DisenadorControlador {
   /** HU-052: el flujo dibujado en un lienzo. */
   @Get('grafo')
   @RequierePermiso('flujos:administrar')
-  grafo(@Param('id') id: string) {
-    return this.servicio.grafo(id);
+  grafo(@Param('id') id: string, @Query('version') version?: string) {
+    return this.servicio.grafo(id, version);
+  }
+
+  /** HU-080: el historial de versiones, con su autor y su fecha. */
+  @Get('versiones')
+  @RequierePermiso('flujos:administrar')
+  versiones(@Param('id') id: string) {
+    return this.servicio.versiones(id);
+  }
+
+  /** Descartar el borrador abierto sobre un flujo publicado. */
+  @Delete('versiones/borrador')
+  @RequierePermiso('flujos:administrar')
+  descartarBorrador(@Param('id') id: string, @ActorActual() actor: Actor) {
+    return this.servicio.descartarBorrador(id, actor);
   }
 
   /** HU-053: agregar un paso. */
