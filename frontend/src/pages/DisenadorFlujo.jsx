@@ -632,7 +632,7 @@ function TiposDocumentalesFlujo({ flujoId }) {
   }
 
   return (
-    <Card title="Tipos documentales" sub="Los documentos de estos tipos podrán iniciar su trámite con este flujo al radicarse" icono={<IconFlujo size={17} />}>
+    <Card title="Tipos documentales" sub="Los documentos de estos tipos podrán iniciar su trámite con este flujo al radicarse. Aplica al flujo completo, no a una versión: el cambio rige de inmediato, aunque estés editando un borrador." icono={<IconFlujo size={17} />}>
       {tipos.error || vinculados.error ? <div className="error-message">No se pudieron cargar los tipos documentales.</div> : null}
       <div className="opciones" role="group" aria-label="Tipos documentales del flujo">
         {lista.map((tipo) => (
@@ -797,9 +797,7 @@ export default function DisenadorFlujo() {
             </select>
           </label>
         ) : null}
-        <span className="badge gris">
-          {grafo.version ? `Versión ${grafo.version.numero} · ${grafo.pasos.length} paso${grafo.pasos.length === 1 ? '' : 's'} · ${grafo.transiciones.length} transición${grafo.transiciones.length === 1 ? '' : 'es'}` : 'Sin pasos todavía'}
-        </span>
+        {!grafo.version ? <span className="badge gris">Sin pasos todavía</span> : null}
         {roles.error || areas.error ? <span className="badge ambar">El catálogo de roles y áreas no respondió</span> : null}
       </div>
 
