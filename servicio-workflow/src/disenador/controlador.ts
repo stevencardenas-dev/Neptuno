@@ -122,6 +122,13 @@ export class DisenadorControlador {
     return this.servicio.publicar(id, actor);
   }
 
+  /** HU-078: abrir una versión nueva, en borrador, copiando la publicada. */
+  @Post('versiones')
+  @RequierePermiso('flujos:administrar')
+  crearVersion(@Param('id') id: string, @ActorActual() actor: Actor) {
+    return this.servicio.crearVersion(id, actor);
+  }
+
   /** HU-050: archivar el flujo. */
   @Patch('desactivar')
   @RequierePermiso('flujos:administrar')

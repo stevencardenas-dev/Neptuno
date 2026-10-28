@@ -85,7 +85,9 @@ para que los trámites en curso no cambien de camino.
 | HU-071 | Tenencia única del Original: una sola persona atiende la tarea tomada (implementado) |
 | HU-072…HU-074 | Tiempo límite del flujo y de cada paso, y semáforo de vencimiento (pendiente: las columnas existen, pero ningún endpoint las configura, así que la bandeja siempre dice «Sin plazo») |
 | HU-075…HU-077 | Estados que exigen firma, firma electrónica y consulta de firmas |
-| HU-078…HU-080 | Versionado: los trámites en curso conservan su versión |
+| HU-078 | Crear una versión nueva en borrador copiando la publicada (`POST /flujos/{id}/versiones`) (implementado) |
+| HU-079 | Los trámites en curso conservan su versión: cada trámite guarda su `version_id` (implementado como regla del motor) |
+| HU-080 | Historial de versiones con fecha y autor (pendiente) |
 | HU-083 | Consulta y aprobación desde el celular |
 
 ### ms-audit-infra — Bitácora y requerimientos no funcionales (Go)

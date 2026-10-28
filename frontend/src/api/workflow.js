@@ -89,6 +89,11 @@ export function publicarFlujo(id) {
   return peticion(`/flujos/${id}/publicar`, { metodo: 'POST', base: BASE_WORKFLOW })
 }
 
+/** HU-078: abrir una versión nueva, en borrador, a partir de la publicada. */
+export function crearVersionFlujo(id) {
+  return peticion(`/flujos/${id}/versiones`, { metodo: 'POST', base: BASE_WORKFLOW })
+}
+
 /** HU-050: archivar el flujo. */
 export function desactivarFlujo(id) {
   return peticion(`/flujos/${id}/desactivar`, { metodo: 'PATCH', base: BASE_WORKFLOW })
