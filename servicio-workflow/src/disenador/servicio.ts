@@ -133,6 +133,16 @@ export class ServicioDisenador {
     return this.grafo(id);
   }
 
+  /**
+   * HU-078: crea una versión nueva, en borrador, a partir de la publicada. Devuelve el
+   * lienzo del borrador, ya editable con las mismas operaciones de siempre.
+   */
+  async crearVersion(id: string, actor: Actor): Promise<Grafo> {
+    this.exigirId(id);
+    await this.repo.crearVersion(id, autor(actor));
+    return this.grafo(id);
+  }
+
   /** HU-050: archivar el flujo. */
   async desactivar(id: string, actor: Actor): Promise<Grafo> {
     this.exigirId(id);

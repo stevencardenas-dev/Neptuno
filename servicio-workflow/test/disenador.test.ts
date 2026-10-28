@@ -102,3 +102,31 @@ test('el responsable debe ser de un tipo conocido y con identificador válido', 
   assert.equal(esId(uuid(3)), true);
   assert.equal(esId('hola'), false);
 });
+
+// HU-078: la versión nueva se abre sobre la publicada y devuelve el lienzo del borrador.
+// La copia de pasos, transiciones y responsables ocurre en SQL (repositorio); aquí se fija
+// lo que decide el servicio: validar el id y devolver el borrador.
+
+test('crear una versión valida el identificador antes de tocar nada', async () => {
+  const { ServicioDisenador } = await import('../src/disenador/servicio');
+  const llamadas: string[] = [];
+  const repo = { crearVersion: async (id: string) => void llamadas.push(id) } as any;
+  const servicio = new ServicioDisenador(repo, {} as any);
+  await assert.rejects(servicio.crearVersion('no-es-uuid', { id: uuid(1), correo: 'a@b.c' } as any), (e: any) => e.getStatus() === 404);
+  assert.deepEqual(llamadas, []);
+});
+
+test('crear una versión devuelve el lienzo del borrador', async () => {
+  const { ServicioDisenador } = await import('../src/disenador/servicio');
+  const grafo = { flujoId: uuid(5), version: { id: uuid(6), numero: 2, estado: 'BORRADOR' }, editable: true, pasos: [], transiciones: [] };
+  const llamadas: string[] = [];
+  const repo = {
+    crearVersion: async (id: string) => void llamadas.push(id),
+    grafo: async () => grafo,
+  } as any;
+  const servicio = new ServicioDisenador(repo, {} as any);
+  const resultado = await servicio.crearVersion(uuid(5), { id: uuid(1), correo: 'a@b.c' } as any);
+  assert.deepEqual(llamadas, [uuid(5)]);
+  assert.equal(resultado.version?.numero, 2);
+  assert.equal(resultado.editable, true);
+});

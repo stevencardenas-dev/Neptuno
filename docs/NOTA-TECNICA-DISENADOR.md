@@ -25,9 +25,9 @@ para los trámites nuevos.
 
 Consecuencia práctica en la interfaz: **un flujo en borrador se edita; un flujo publicado se
 consulta**. Publicar es el acto que pone el recorrido en operación y, a partir de ahí, el
-lienzo se vuelve de solo lectura con un aviso explícito. La versión nueva de un flujo activo
-(editar sin romper los trámites en curso) es HU-078 y queda pendiente; hoy se resuelve
-creando otro flujo.
+lienzo se vuelve de solo lectura con un aviso explícito. Para cambiar un flujo activo sin romper los trámites en curso, HU-078 abre una versión
+nueva en borrador (`POST /flujos/{id}/versiones`) copiando la publicada; al publicarla, la
+anterior queda reemplazada y los trámites en curso conservan la suya.
 
 ## 2. Permiso: `flujos:administrar`
 
@@ -136,8 +136,8 @@ al paquete del frontend; el paquete completo hoy pesa 367 KB.
 
 ## 8. Lo que queda deliberadamente por fuera
 
-- **HU-078…HU-080 (versionado explícito)**: no hay endpoint para "crear una versión nueva de
-  un flujo activo" ni consulta de versiones anteriores. Hoy se publica una versión por flujo.
+- **HU-080 (historial de versiones)**: HU-078 ya crea versiones nuevas; falta la consulta
+  de las versiones anteriores con su fecha y autor.
 - **HU-069 (usuario, grupo o rol)**: falta el catálogo de usuarios y grupos para validar
   responsables.
 - **HU-050 (guardia de trámites en curso)**: el backlog pide no archivar un flujo con

@@ -167,6 +167,8 @@ export interface Grafo {
   flujo: string;
   estadoFlujo: string;
   version: VersionDeTrabajo | null;
+  /** Número de la versión publicada que usan los trámites; distinta de `version` cuando se edita un borrador nuevo (HU-078). */
+  versionEnOperacion: number | null;
   editable: boolean;
   pasos: Paso[];
   transiciones: Transicion[];

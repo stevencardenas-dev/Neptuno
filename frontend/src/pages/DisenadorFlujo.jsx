@@ -9,6 +9,7 @@ import {
   agregarPaso,
   agregarTransicion,
   asignarResponsable,
+  crearVersionFlujo,
   asignarTiposDeFlujo,
   desactivarFlujo,
   editarPaso,
@@ -698,6 +699,7 @@ export default function DisenadorFlujo() {
   const estado = ESTADOS_FLUJO[grafo.estadoFlujo] ?? { etiqueta: grafo.estadoFlujo, tono: 'gris' }
   const paso = grafo.pasos.find((candidato) => candidato.id === seleccion) ?? null
   const soloLectura = !grafo.editable
+  const borradorNuevo = !soloLectura && grafo.versionEnOperacion !== null
 
   return (
     <>
@@ -712,6 +714,11 @@ export default function DisenadorFlujo() {
             {!soloLectura ? (
               <button className="btn" type="button" disabled={guardando} onClick={() => ejecutar(() => publicarFlujo(id))}>
                 <IconCheck size={16} /> Publicar flujo
+              </button>
+            ) : null}
+            {soloLectura && grafo.estadoFlujo !== 'INACTIVO' ? (
+              <button className="btn" type="button" disabled={guardando} onClick={() => ejecutar(() => crearVersionFlujo(id))}>
+                <IconMas size={16} /> Crear nueva versión
               </button>
             ) : null}
             {grafo.estadoFlujo === 'INACTIVO' ? (
@@ -729,6 +736,7 @@ export default function DisenadorFlujo() {
 
       <div className="row mt-8" style={{ gap: 8, flexWrap: 'wrap' }}>
         <span className={`badge ${estado.tono}`}>{estado.etiqueta}</span>
+        {borradorNuevo ? <span className="badge ambar">Editando la versión {grafo.version.numero} (borrador)</span> : null}
         <span className="badge gris">
           {grafo.version ? `Versión ${grafo.version.numero} · ${grafo.pasos.length} paso${grafo.pasos.length === 1 ? '' : 's'} · ${grafo.transiciones.length} transición${grafo.transiciones.length === 1 ? '' : 'es'}` : 'Sin pasos todavía'}
         </span>
@@ -744,11 +752,22 @@ export default function DisenadorFlujo() {
         </div>
       ) : null}
 
+      {borradorNuevo ? (
+        <div className="mt-16">
+          <Note icono={<IconInfo size={17} />}>
+            Estás editando la versión {grafo.version.numero}, un borrador. La versión {grafo.versionEnOperacion} sigue
+            en operación y los trámites nuevos la usan hasta que publiques este borrador.
+          </Note>
+        </div>
+      ) : null}
+
       {soloLectura ? (
         <div className="mt-16">
           <Note icono={<IconInfo size={17} />}>
             Este flujo está publicado: su recorrido no se edita mientras esté en operación, para que los
-            trámites que ya empezaron no cambien de camino.
+            trámites que ya empezaron no cambien de camino. Para cambiarlo, crea una versión nueva: se
+            abre un borrador con una copia del recorrido y la versión actual sigue en operación hasta que
+            publiques el borrador.
           </Note>
         </div>
       ) : null}

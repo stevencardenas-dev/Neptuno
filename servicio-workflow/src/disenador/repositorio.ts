@@ -96,15 +96,19 @@ export class RepositorioDisenador {
   async grafo(id: string): Promise<Grafo | null> {
     const flujo = await this.flujo(id);
     if (!flujo) return null;
-    const version = flujo.versionActivaId
-      ? await this.versionPorId(flujo.versionActivaId)
-      : await this.versionBorradorDeLectura(flujo.id);
+    // Si hay un borrador (la primera versión o una nueva sobre un flujo publicado, HU-078),
+    // es lo que se dibuja y se edita; si no, la versión que está en operación.
+    const version =
+      (await this.versionBorradorDeLectura(flujo.id)) ??
+      (flujo.versionActivaId ? await this.versionPorId(flujo.versionActivaId) : null);
+    const enOperacion = flujo.versionActivaId ? await this.versionPorId(flujo.versionActivaId) : null;
     if (!version) {
       return {
         flujoId: flujo.id,
         flujo: flujo.nombre,
         estadoFlujo: flujo.estado,
         version: null,
+        versionEnOperacion: null,
         editable: flujo.versionActivaId === null,
         pasos: [],
         transiciones: [],
@@ -120,6 +124,7 @@ export class RepositorioDisenador {
       flujo: flujo.nombre,
       estadoFlujo: flujo.estado,
       version,
+      versionEnOperacion: enOperacion?.numero ?? null,
       editable: version.estado === 'BORRADOR',
       pasos: pasos.map((paso) => ({
         ...paso,
@@ -401,6 +406,103 @@ export class RepositorioDisenador {
     });
   }
 
+  /**
+   * HU-078: abre una versión nueva (en borrador) copiando la que está en operación, para
+   * cambiar el flujo sin tocar lo que los trámites en curso siguen usando. La publicada
+   * no se modifica: solo se reemplaza cuando el borrador se publica (HU-061).
+   */
+  async crearVersion(flujoId: string, actor: Autor): Promise<VersionDeTrabajo> {
+    let creada!: VersionDeTrabajo;
+    await enTransaccion(this.pool, async (cx) => {
+      // Bloquea el flujo para que dos peticiones simultáneas no abran dos borradores.
+      await cx.query('select id from flujo where id = uuid_to_bin(?) for update', [flujoId]);
+      const flujo = await this.flujoDe(cx, flujoId);
+      if (!flujo.versionActivaId) {
+        throw conflicto('El flujo todavía no tiene una versión publicada: edita el borrador y publícalo.');
+      }
+      if (flujo.estado === 'INACTIVO') throw conflicto('El flujo está archivado: reactívalo antes de versionarlo.');
+      const [borradores] = await cx.query<FilaVersion[]>(
+        `select bin_to_uuid(v.id) as id, v.numero, v.estado from flujo_version v
+          where v.flujo_id = uuid_to_bin(?) and v.estado = 'BORRADOR' limit 1`,
+        [flujoId],
+      );
+      if (borradores.length) {
+        throw conflicto(`Ya hay una versión ${borradores[0]!.numero} en borrador: edítala y publícala.`);
+      }
+
+      const origen = flujo.versionActivaId;
+      const [siguiente] = await cx.query<RowDataPacket[]>(
+        'select coalesce(max(numero), 0) + 1 as numero from flujo_version where flujo_id = uuid_to_bin(?)',
+        [flujoId],
+      );
+      const numero = Number(siguiente[0]!.numero);
+      const versionId = randomUUID();
+      await cx.query(
+        `insert into flujo_version (id, flujo_id, numero, estado, sla_global_minutos, notas, creado_por, creado_en)
+         select uuid_to_bin(?), flujo_id, ?, 'BORRADOR', sla_global_minutos, notas, uuid_to_bin(?), utc_timestamp(6)
+           from flujo_version where id = uuid_to_bin(?)`,
+        [versionId, numero, actor.id, origen],
+      );
+
+      // Cada paso copiado recibe un id propio; las transiciones y los responsables se
+      // reapuntan a esos ids nuevos.
+      const [pasos] = await cx.query<RowDataPacket[]>(
+        `select bin_to_uuid(id) as id, nombre, descripcion, tipo, tipo_responsable, sla_minutos,
+                requiere_firma, posicion_x, posicion_y
+           from estado_flujo where version_id = uuid_to_bin(?)`,
+        [origen],
+      );
+      const nuevoId = new Map<string, string>();
+      for (const p of pasos) {
+        const id = randomUUID();
+        nuevoId.set(p.id, id);
+        await cx.query(
+          `insert into estado_flujo (id, version_id, nombre, descripcion, tipo, tipo_responsable, sla_minutos,
+                                     requiere_firma, posicion_x, posicion_y)
+           values (uuid_to_bin(?), uuid_to_bin(?), ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, versionId, p.nombre, p.descripcion, p.tipo, p.tipo_responsable, p.sla_minutos,
+           p.requiere_firma, p.posicion_x, p.posicion_y],
+        );
+      }
+      const [transiciones] = await cx.query<RowDataPacket[]>(
+        `select bin_to_uuid(estado_origen_id) as origen, bin_to_uuid(estado_destino_id) as destino, accion, etiqueta
+           from transicion where version_id = uuid_to_bin(?)`,
+        [origen],
+      );
+      for (const t of transiciones) {
+        await cx.query(
+          `insert into transicion (id, version_id, estado_origen_id, estado_destino_id, accion, etiqueta)
+           values (uuid_to_bin(?), uuid_to_bin(?), uuid_to_bin(?), uuid_to_bin(?), ?, ?)`,
+          [randomUUID(), versionId, nuevoId.get(t.origen), nuevoId.get(t.destino), t.accion, t.etiqueta],
+        );
+      }
+      const [responsables] = await cx.query<RowDataPacket[]>(
+        `select bin_to_uuid(r.estado_id) as estado, r.tipo_sujeto, bin_to_uuid(r.sujeto_id) as sujeto,
+                bin_to_uuid(r.asignado_por) as asignadoPor, r.asignado_en
+           from estado_responsable r join estado_flujo e on e.id = r.estado_id
+          where e.version_id = uuid_to_bin(?)`,
+        [origen],
+      );
+      for (const r of responsables) {
+        await cx.query(
+          `insert into estado_responsable (id, estado_id, tipo_sujeto, sujeto_id, asignado_por, asignado_en)
+           values (uuid_to_bin(?), uuid_to_bin(?), ?, uuid_to_bin(?), uuid_to_bin(?), ?)`,
+          [randomUUID(), nuevoId.get(r.estado), r.tipo_sujeto, r.sujeto, r.asignadoPor, r.asignado_en],
+        );
+      }
+
+      await registrarEvento(cx, {
+        tipo: 'flujo.version_creada',
+        entidad: 'flujo',
+        entidadId: flujoId,
+        actor,
+        detalle: { flujoId, versionId, numero, copiadaDeId: origen, pasos: pasos.length },
+      });
+      creada = { id: versionId, numero, estado: 'BORRADOR' };
+    });
+    return creada;
+  }
+
   /** HU-061: la versión en borrador queda publicada y pasa a ser la que usan los trámites. */
   async publicar(flujoId: string, actor: Autor): Promise<{ version: VersionDeTrabajo; pasos: number }> {
     let publicada: { version: VersionDeTrabajo; pasos: number } | null = null;
@@ -529,7 +631,7 @@ export class RepositorioDisenador {
     if (flujo.versionActivaId) {
       throw conflicto(
         'Este flujo ya está publicado: su recorrido no se edita mientras esté en operación. ' +
-          'Los cambios se harán sobre una versión nueva.',
+          'Para cambiarlo, crea una versión nueva (POST /flujos/{id}/versiones).',
       );
     }
 
