@@ -14,16 +14,18 @@ usuario) y las funcionalidades nuevas que se proponen.
 | Microservicio | Estado | HU cubiertas |
 |---------------|--------|--------------|
 | `servicio-usuarios` (ms-auth-catalogs) | Implementado | HU-001…HU-016, HU-022 |
-| `servicio-documentos` (ms-document-management) | En curso: radicación (crear, consultar, listar, editar) | HU-017…HU-021, HU-023, HU-024, HU-039, HU-040 |
+| `servicio-documentos` (ms-document-management) | En curso: radicación (crear, consultar, listar, editar) y anexos en MinIO | HU-017…HU-021, HU-023…HU-026, HU-028, HU-029, HU-039, HU-040 |
 | `servicio-auditoria` (ms-audit-infra) | Implementado: bitácora encadenada por hash, consulta, historial por documento y filtros | HU-043…HU-047 |
-| `servicio-workflow` (ms-workflow-bpm) | En curso: diseñador de flujos (identidad del flujo, lienzo de pasos y transiciones, publicación) | HU-048…HU-061 |
-| Frontend | Login, panel, usuarios, roles, parámetros, radicación, flujos (lista y lienzo) y bitácora | Las de usuarios, radicación, flujos y auditoría |
+| `servicio-workflow` (ms-workflow-bpm) | En curso: diseñador de flujos y trámites con bandeja de entrada | HU-048…HU-063, HU-066…HU-068, HU-071 |
+| Frontend | Login, panel, usuarios, roles, parámetros, radicación con anexos, bandeja, flujos (lista y lienzo) y bitácora | Las de usuarios, radicación, flujos y auditoría |
 
-Avance: **45 de 85 historias (53 %)**. De las 40 que faltan, 20 son de flujo de trabajo,
-16 de documentos (14 dependen de MinIO) y 4 de auditoría (copias de seguridad, métricas y
-pruebas de carga). El conteo no pesa todas las historias igual —un formulario no cuesta lo
-mismo que el lienzo de pasos y transiciones— y las funcionalidades propuestas de la
-sección 2 van aparte de las 85.
+Avance: **55 de 85 historias (65 %)**. De las 30 que faltan, 12 son de documentos
+(carpetas y expediente, plantillas, copias y la carga de varios anexos a la vez), 14 de
+flujo de trabajo (los tiempos límite y el semáforo, filtros de la bandeja, liberar una
+tarea, grupos como responsables, firma electrónica, versionado explícito y móvil) y 4 de
+auditoría (copias de seguridad, métricas y pruebas de carga). El conteo no pesa todas las historias igual —un formulario no cuesta lo mismo
+que el lienzo de pasos y transiciones— y las funcionalidades propuestas de la sección 2
+van aparte de las 85.
 
 ## 1. Backlog pendiente, agrupado por microservicio
 
@@ -40,8 +42,10 @@ interna `/api/usuarios/interno/**` (HU-014).
 
 ### ms-document-management — Radicación, anexos, expediente y plantillas (Node.js · Express)
 
-Implementado en `servicio-documentos/`: HU-017…HU-021, HU-023, HU-024, HU-039 y HU-040. Falta todo
-lo que depende de MinIO y del expediente (anexos, carpetas, plantillas y copias).
+Implementado en `servicio-documentos/`: HU-017…HU-021, HU-023…HU-026, HU-028, HU-029, HU-039 y
+HU-040 (radicación y anexos en MinIO). Falta el expediente y las plantillas (carpetas,
+subcarpetas, documentos No radicables, plantillas DOCX y copias a destinatarios) y la carga de
+varios anexos en una sola petición (HU-027: hoy se sube un archivo por petición).
 
 | HU | Funcionalidad |
 |----|---------------|
@@ -49,19 +53,21 @@ lo que depende de MinIO y del expediente (anexos, carpetas, plantillas y copias)
 | HU-018, HU-024 | Clasificación por origen; solo el rol Radicador registra Recibido (`radicados:radicar-recibido`) |
 | HU-019, HU-021, HU-039, HU-040 | Metadatos obligatorios y extendidos, clase Original/Copia; edición sin tocar el código |
 | HU-020, HU-023 | Detalle y listado filtrable de radicados |
-| HU-025…HU-029 | Anexos múltiples (PDF, PNG, JPG, DOCX, XLSX) en MinIO, descarga y eliminación con constancia |
+| HU-025, HU-026, HU-028, HU-029 | Anexos (PDF, PNG, JPG, DOCX, XLSX) en MinIO, descarga y eliminación con constancia (implementado). Salvedades: el formato inválido responde 400 (el backlog dice 415), solo se valida la extensión y el tipo declarado —no el contenido— y la descarga se entrega por el propio servicio, no con URL prefirmada |
+| HU-027 | Varios archivos en una sola carga (pendiente) |
 | HU-030…HU-034 | Carpetas por área, subcarpetas, árbol del expediente, visibilidad por rol y documentos No radicables |
 | HU-035…HU-038 | Plantillas DOCX con variables, vínculo a orígenes Interno/Externo, render y PDF |
 | HU-041, HU-042 | Envío de copias a destinatarios y bandeja de copias recibidas |
 
 ### ms-workflow-bpm — Diseñador de flujos, bandeja y firma (Node.js · NestJS)
 
-Implementado en `servicio-workflow/`: HU-048…HU-061 — la identidad del flujo (crear, listar,
+Implementado en `servicio-workflow/`: HU-048…HU-063, HU-066…HU-068 y HU-071 — la identidad del flujo (crear, listar,
 consultar y editar), el lienzo de pasos, transiciones y responsables, la validación de
-publicación y el archivo del flujo — con su propia base `workflow_bpm_db` y sus pantallas
-"Flujos" y "Diseñar flujo". La definición vive en la versión del flujo, no en el flujo: un
-flujo en borrador se edita, y al publicarlo su recorrido queda bloqueado para que los
-trámites en curso no cambien de camino.
+publicación y el archivo del flujo, más los trámites sobre radicados con bandeja de entrada,
+toma exclusiva y recorrido con observaciones — con su propia base `workflow_bpm_db` y sus
+pantallas "Flujos", "Diseñar flujo" y "Bandeja". La definición vive en la versión del flujo,
+no en el flujo: un flujo en borrador se edita, y al publicarlo su recorrido queda bloqueado
+para que los trámites en curso no cambien de camino.
 
 | HU | Funcionalidad |
 |----|---------------|
@@ -69,10 +75,15 @@ trámites en curso no cambien de camino.
 | HU-050 | Archivar el flujo y devolverlo a la operación (implementado) |
 | HU-052…HU-055 | Lienzo de pasos: consultarlo, agregar, corregir, marcar inicial/intermedio/final y ubicarlo (implementado) |
 | HU-056…HU-058 | Transiciones: crear la acción que lleva de un paso a otro, corregirla y eliminarla (implementado) |
-| HU-059, HU-060 | Responsables por paso (rol o área validados contra ms-auth-catalogs) (implementado) |
+| HU-059, HU-060 | Responsables por paso (usuario, rol o área validados contra ms-auth-catalogs) (implementado) |
 | HU-061 | Validación y publicación: paso inicial, pasos finales y ningún paso aislado (implementado) |
-| HU-062…HU-068 | Bandeja de tareas: iniciar trámite, aprobar, cancelar y devolver con observación |
-| HU-069…HU-074 | Responsable por paso (usuario, grupo o rol), toma exclusiva, tenencia única del Original, SLA y semáforo |
+| HU-062, HU-063, HU-066…HU-068 | Bandeja de tareas: iniciar trámite, ver la bandeja por responsable, aprobar, enviar, cancelar y devolver con observación (implementado) |
+| HU-064 | Filtrar y ordenar la bandeja por fecha, tipo documental y origen (pendiente: hoy solo se ordena por vencimiento) |
+| HU-065 | Abrir la tarea con metadatos y anexos del documento (parcial: muestra los metadatos y el recorrido, pero no los anexos) |
+| HU-069 | Responsable por paso: usuario, área o rol validados contra ms-auth-catalogs (implementado); grupos de trabajo pendientes porque no hay catálogo de grupos |
+| HU-070 | Tomar la tarea de forma exclusiva con 409 si otro ya la tomó (implementado); `liberar` pendiente |
+| HU-071 | Tenencia única del Original: una sola persona atiende la tarea tomada (implementado) |
+| HU-072…HU-074 | Tiempo límite del flujo y de cada paso, y semáforo de vencimiento (pendiente: las columnas existen, pero ningún endpoint las configura, así que la bandeja siempre dice «Sin plazo») |
 | HU-075…HU-077 | Estados que exigen firma, firma electrónica y consulta de firmas |
 | HU-078…HU-080 | Versionado: los trámites en curso conservan su versión |
 | HU-083 | Consulta y aprobación desde el celular |
