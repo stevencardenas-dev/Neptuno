@@ -141,7 +141,6 @@ function DetalleRadicado({ id, tipos, areas, entidades, onCerrar, onEditar, onEn
             { k: 'Remitente', v: r.remitente },
             { k: 'Destinatario', v: r.destinatario },
             { k: 'Fecha del documento', v: formatearDia(r.fechaDocumento) },
-            { k: 'Folios', v: r.folios },
           ]} />
 
           {r.comentarios ? (
@@ -187,7 +186,6 @@ function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, erro
   const [remitente, setRemitente] = useState(radicado?.remitente ?? '')
   const [destinatario, setDestinatario] = useState(radicado?.destinatario ?? '')
   const [fechaDocumento, setFechaDocumento] = useState(soloDia(radicado?.fechaDocumento) || hoyLocal())
-  const [folios, setFolios] = useState(radicado?.folios ?? 1)
   const [comentarios, setComentarios] = useState(radicado?.comentarios ?? '')
 
   // HU-018: el tipo documental declara qué orígenes admite; el servicio rechaza el resto.
@@ -213,7 +211,6 @@ function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, erro
       remitente: remitente.trim(),
       destinatario: destinatario.trim(),
       fechaDocumento,
-      folios: Number(folios) || 1,
       comentarios: comentarios.trim() || null,
     }
     if (esEdicion) {
@@ -314,16 +311,29 @@ function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, erro
           </div>
         </div>
 
-        {!esEdicion && tipoDocumentalId && (flujos.datos ?? []).length ? (
+        {!esEdicion && tipoDocumentalId ? (
           <div className="field">
             <label htmlFor="radicado-flujo">Flujo de trabajo</label>
-            <select id="radicado-flujo" value={flujoId} onChange={(e) => setFlujoId(e.target.value)}>
-              <option value="">Sin flujo por ahora</option>
-              {flujos.datos.map((flujo) => (
+            <select
+              id="radicado-flujo"
+              value={flujoId}
+              disabled={flujos.cargando || !(flujos.datos ?? []).length}
+              onChange={(e) => setFlujoId(e.target.value)}
+            >
+              <option value="">Elegir más tarde</option>
+              {(flujos.datos ?? []).map((flujo) => (
                 <option key={flujo.id} value={flujo.id}>{flujo.nombre}</option>
               ))}
             </select>
-            <span className="hint">Con un flujo, el documento arranca su trámite en el primer paso.</span>
+            <span className="hint">
+              {flujos.cargando
+                ? 'Consultando los flujos que atienden este tipo documental…'
+                : flujos.error
+                  ? 'No se pudieron consultar los flujos; podrás enviarlo a uno más tarde desde el detalle del radicado.'
+                  : !(flujos.datos ?? []).length
+                    ? 'Ningún flujo activo atiende este tipo documental. Podrás enviarlo a uno más tarde, cuando exista.'
+                    : 'Con un flujo, el documento arranca su trámite en el primer paso. Si lo dejas para más tarde, podrás enviarlo desde el detalle del radicado.'}
+            </span>
           </div>
         ) : null}
 
@@ -373,17 +383,6 @@ function FormularioRadicado({ radicado, tipos, areas, entidades, guardando, erro
               max={hoyLocal()}
               value={fechaDocumento}
               onChange={(e) => setFechaDocumento(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="radicado-folios">Folios <span className="req">*</span></label>
-            <input
-              id="radicado-folios"
-              type="number"
-              min="1"
-              max="100000"
-              value={folios}
-              onChange={(e) => setFolios(e.target.value)}
             />
           </div>
           <div className="field">
@@ -507,6 +506,7 @@ export default function Radicacion() {
   const [fOrigen, setFOrigen] = useState('')
   const [fTipo, setFTipo] = useState('')
   const [fEstado, setFEstado] = useState('')
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(true)
   const [detalle, setDetalle] = useState(null)
   const [modal, setModal] = useState(null)
   const [guardando, setGuardando] = useState(false)
@@ -528,6 +528,8 @@ export default function Radicacion() {
   const lista = radicados.datos?.contenido ?? []
   const total = radicados.datos?.total ?? 0
   const totalPaginas = Math.max(1, Math.ceil(total / TAMANIO))
+
+  const filtrosAplicados = [fTexto, fCodigo, fTipo, fOrigen, fEstado].filter(Boolean).length
 
   const puedeCrear = puede('radicados:crear')
   const puedeEditar = puede('radicados:editar')
@@ -578,7 +580,24 @@ export default function Radicacion() {
         ] : []}
       />
 
-      <div className="toolbar">
+      <div className="toolbar filtros">
+        <div className="filtros-cabecera">
+          <button
+            className="btn secondary sm"
+            type="button"
+            aria-expanded={filtrosAbiertos}
+            aria-controls="filtros-radicados"
+            onClick={() => setFiltrosAbiertos((abierto) => !abierto)}
+          >
+            <IconFiltro size={14} /> Filtros{filtrosAplicados ? ` (${filtrosAplicados})` : ''}{' '}
+            <span aria-hidden="true">{filtrosAbiertos ? '▴' : '▾'}</span>
+          </button>
+          <span className="badge azul">
+            <IconFiltro size={13} /> {lista.length} de {total}
+          </span>
+        </div>
+        {filtrosAbiertos ? (
+        <div id="filtros-radicados" className="filtros-campos">
         <label className="field grow" style={{ maxWidth: 320 }}>
           <input
             type="search"
@@ -615,9 +634,8 @@ export default function Radicacion() {
             {ESTADOS_RADICADO.map((estado) => <option key={estado.valor} value={estado.valor}>{estado.etiqueta}</option>)}
           </select>
         </label>
-        <span className="badge azul" style={{ marginLeft: 'auto' }}>
-          <IconFiltro size={13} /> {lista.length} de {total}
-        </span>
+        </div>
+        ) : null}
       </div>
 
       {errorAccion ? <div className="error-message mt-16">{errorAccion.message}</div> : null}
@@ -642,7 +660,7 @@ export default function Radicacion() {
                   <td>
                     <span className="code">{radicado.codigo}</span>
                     <span className="cell-sub">
-                      {etiquetaClase(radicado.clase)} · {radicado.folios} {radicado.folios === 1 ? 'folio' : 'folios'}
+                      {etiquetaClase(radicado.clase)}
                     </span>
                   </td>
                   <td>

@@ -812,6 +812,11 @@ textarea:-webkit-autofill:focus {
 }
 .toolbar .grow { flex: 1; min-width: 160px; }
 
+/* Barra de filtros que se retrae: la cabecera siempre se ve; los campos, solo abiertos. */
+.toolbar.filtros { flex-direction: column; align-items: stretch; gap: 12px; }
+.filtros-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.filtros-campos { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
 /* Pestañas con subrayado, no píldoras: es el patrón que ya espera cualquiera
    que haya usado antes un sistema administrativo. */
 .tabs {
