@@ -23,6 +23,7 @@ import (
 	"neptuno/auditoria/internal/bitacora"
 	"neptuno/auditoria/internal/comun"
 	"neptuno/auditoria/internal/config"
+	"neptuno/auditoria/internal/operacion"
 )
 
 func main() {
@@ -56,6 +57,12 @@ func ejecutar() error {
 		return err
 	}
 
+	// Medición de tiempos de respuesta (HU-084).
+	servicioOperacion := operacion.NuevoServicio(operacion.NuevoRepositorio(base))
+	if err := servicioOperacion.AplicarMigracion(ctx); err != nil {
+		return err
+	}
+
 	// El consumidor corre en su propia goroutine: la cadena se escribe en el orden en que
 	// RabbitMQ entrega los eventos, sin bloquear las consultas de la bitácora.
 	consumidor := bitacora.NuevoConsumidor(cfg.Eventos, servicio)
@@ -66,10 +73,17 @@ func ejecutar() error {
 	}()
 
 	manejadores := bitacora.NuevoManejadores(servicio)
+	rutas := http.NewServeMux()
+	manejadores.Registrar(rutas)
+	operacion.NuevoManejadores(servicioOperacion).Registrar(rutas)
+
 	// El healthcheck no lleva token: lo consulta el contenedor, no una persona.
 	raiz := http.NewServeMux()
 	raiz.HandleFunc("GET /healthz", manejadores.Salud)
-	raiz.Handle("/", comun.Autenticar(cfg.JWT.Secreto, cfg.JWT.Emisor)(manejadores.Rutas()))
+	// La instrumentación va por fuera de la autenticación para medir también el 401 y el
+	// 403: si el servicio se degrada autenticando, la métrica lo muestra.
+	raiz.Handle("/", comun.Autenticar(cfg.JWT.Secreto, cfg.JWT.Emisor)(
+		servicioOperacion.Colector().Instrumentar(rutas)))
 
 	servidor := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Puerto),

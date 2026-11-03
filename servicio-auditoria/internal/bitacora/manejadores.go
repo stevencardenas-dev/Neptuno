@@ -38,12 +38,18 @@ func NuevoManejadores(servicio *Servicio) *Manejadores {
 // del net/http moderno, así que no hace falta traer un enrutador externo.
 func (m *Manejadores) Rutas() *http.ServeMux {
 	mux := http.NewServeMux()
+	m.Registrar(mux)
+	return mux
+}
+
+// Registrar añade las rutas de la bitácora a un enrutador existente. El servicio arma uno
+// solo con las rutas de bitácora y las de operación, para no montar dos mux sobre «/».
+func (m *Manejadores) Registrar(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/auditoria/bitacora", comun.RequierePermiso(PermisoConsultar, m.listar))
 	mux.HandleFunc("GET /api/auditoria/bitacora/verificacion", comun.RequierePermiso(PermisoConsultar, m.verificacion))
 	mux.HandleFunc("GET /api/auditoria/bitacora/facetas", comun.RequierePermiso(PermisoConsultar, m.facetas))
 	mux.HandleFunc("GET /api/auditoria/bitacora/radicado/{id}", comun.RequierePermiso(PermisoConsultar, m.historial))
 	mux.HandleFunc("GET /api/auditoria/bitacora/{secuencia}", comun.RequierePermiso(PermisoConsultar, m.detalle))
-	return mux
 }
 
 // facetas alimenta los filtros de la vista con los valores que hoy existen (HU-047).
