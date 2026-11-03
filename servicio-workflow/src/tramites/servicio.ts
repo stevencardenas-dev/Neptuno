@@ -123,6 +123,20 @@ export class ServicioTramites {
     return (await this.detalle(tarea.tramiteId, actor))!;
   }
 
+  /**
+   * HU-070: devolver la tarea a la bolsa. Solo quien la tomó (o quien administra flujos)
+   * puede liberarla.
+   */
+  async liberar(tareaId: string, actor: Actor): Promise<TramiteDetalle> {
+    const tarea = esId(tareaId) ? await this.repo.tarea(tareaId) : null;
+    if (!tarea) throw noEncontrado('La tarea no existe.');
+    if (tarea.asignadaA && tarea.asignadaA !== actor.id && !actor.permisos.has('flujos:administrar')) {
+      throw conflicto('Otra persona tomó esta tarea.');
+    }
+    await this.repo.liberar(tareaId, autor(actor));
+    return (await this.detalle(tarea.tramiteId, actor))!;
+  }
+
   /** HU-066…HU-068: aprobar, enviar, devolver o cancelar. */
   async ejecutar(tareaId: string, cuerpo: unknown, actor: Actor): Promise<TramiteDetalle> {
     const { accion, observacion } = this.validar<EjecutarTarea>(cuerpo, esquemaEjecutar);

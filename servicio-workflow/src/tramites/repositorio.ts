@@ -453,6 +453,44 @@ export class RepositorioTramites {
   }
 
   /**
+   * HU-070: liberar una tarea que el usuario había tomado y ya no va a atender. Vuelve a
+   * la bolsa del paso para que otro responsable la tome.
+   */
+  async liberar(tareaId: string, actor: Autor): Promise<void> {
+    await enTransaccion(this.pool, async (cx) => {
+      const tarea = await this.bloquearTarea(cx, tareaId);
+      if (tarea.estado !== 'TOMADA') throw conflicto('La tarea no está tomada.');
+      if (tarea.asignadaA !== actor.id) throw conflicto('Solo quien tomó la tarea puede liberarla.');
+      const [tramites] = await cx.query<any[]>(
+        'select estado, bin_to_uuid(radicado_id) as radicadoId from tramite where id = uuid_to_bin(?) for update',
+        [tarea.tramiteId],
+      );
+      if (!tramites.length || tramites[0].estado !== 'EN_CURSO') throw conflicto('El trámite ya está cerrado.');
+      const ahora = new Date();
+      await cx.query(
+        `update tarea set estado = 'PENDIENTE', asignada_a = null, tomada_en = null, version = version + 1
+          where id = uuid_to_bin(?)`,
+        [tareaId],
+      );
+      await cx.query(
+        `insert into movimiento_tramite
+           (id, tramite_id, tarea_id, transicion_id, estado_origen_id, estado_destino_id, accion, observacion,
+            usuario_id, usuario_correo, ocurrido_en)
+         values (uuid_to_bin(?), uuid_to_bin(?), uuid_to_bin(?), null, uuid_to_bin(?), uuid_to_bin(?), 'LIBERAR', null,
+                 uuid_to_bin(?), ?, ?)`,
+        [randomUUID(), tarea.tramiteId, tareaId, tarea.estadoFlujoId, tarea.estadoFlujoId, actor.id, actor.correo, ahora],
+      );
+      await registrarEvento(cx, {
+        tipo: 'tarea.liberada',
+        entidad: 'tarea',
+        entidadId: tareaId,
+        actor,
+        detalle: { tareaId, tramiteId: tarea.tramiteId, radicadoId: tramites[0].radicadoId },
+      });
+    });
+  }
+
+  /**
    * HU-066…HU-068: ejecuta una transición desde el paso actual. La tarea se completa y
    * el trámite avanza; si el destino es final (o la acción es cancelar) se cierra.
    */

@@ -165,3 +165,8 @@ export function tomarTarea(id) {
 export function ejecutarTarea(id, datos) {
   return peticion(`/tareas/${id}/ejecutar`, { metodo: 'POST', cuerpo: datos, base: BASE_WORKFLOW })
 }
+
+/** HU-070: liberar la tarea para que otro responsable la tome. */
+export function liberarTarea(id) {
+  return peticion(`/tareas/${id}/liberar`, { metodo: 'POST', base: BASE_WORKFLOW })
+}

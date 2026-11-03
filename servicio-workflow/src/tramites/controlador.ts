@@ -77,6 +77,13 @@ export class TramitesControlador {
     return this.servicio.tomar(id, actor);
   }
 
+  /** HU-070: liberar la tarea para que otro responsable la tome. */
+  @Post('tareas/:id/liberar')
+  @RequierePermiso('flujo:aprobar')
+  liberar(@Param('id') id: string, @ActorActual() actor: Actor) {
+    return this.servicio.liberar(id, actor);
+  }
+
   /** HU-066…HU-068: aprobar, enviar, devolver o cancelar. */
   @Post('tareas/:id/ejecutar')
   ejecutar(@Param('id') id: string, @Body() cuerpo: unknown, @ActorActual() actor: Actor) {

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Card, KV, Modal, Note, PageHead } from '../components/ui.jsx'
 import { usePeticion } from '../api/usePeticion.js'
-import { consultarTramite, ejecutarTarea, listarBandeja, tomarTarea } from '../api/workflow.js'
+import { consultarTramite, ejecutarTarea, liberarTarea, listarBandeja, tomarTarea } from '../api/workflow.js'
 import { formatearFecha, formatearFechaHora } from '../util/formato.js'
 import { IconBandeja, IconCheck, IconInfo } from '../components/Icons.jsx'
 
@@ -79,6 +79,20 @@ function AtenderTarea({ tarea, onCerrar, onHecho }) {
     }
   }
 
+  /** HU-070: devolver la tarea al grupo de responsables sin mover el trámite. */
+  async function liberar() {
+    setEnviando('LIBERAR')
+    setError(null)
+    try {
+      await liberarTarea(tarea.id)
+      onHecho()
+    } catch (fallo) {
+      setError(fallo)
+    } finally {
+      setEnviando('')
+    }
+  }
+
   const tonoPlazo = plazo(tarea)
   const estado = estadoTarea(tarea)
 
@@ -94,6 +108,11 @@ function AtenderTarea({ tarea, onCerrar, onHecho }) {
         ...(propia && abierta?.estado === 'PENDIENTE' ? [
           <button key="t" className="btn secondary" type="button" disabled={Boolean(enviando)} onClick={tomar}>
             <IconBandeja size={15} /> {enviando === 'TOMAR' ? 'Tomando…' : 'Tomar la tarea'}
+          </button>,
+        ] : []),
+        ...(propia && abierta?.estado === 'TOMADA' && abierta?.esMia ? [
+          <button key="l" className="btn ghost" type="button" disabled={Boolean(enviando)} onClick={liberar}>
+            {enviando === 'LIBERAR' ? 'Liberando…' : 'Liberar'}
           </button>,
         ] : []),
         ...(propia ? acciones.map((accion) => (
