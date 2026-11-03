@@ -6,6 +6,7 @@ import Configuracion from './pages/Configuracion.jsx'
 import Copias from './pages/Copias.jsx'
 import DisenadorFlujo from './pages/DisenadorFlujo.jsx'
 import Flujos from './pages/Flujos.jsx'
+import Grupos from './pages/Grupos.jsx'
 import Login from './pages/Login.jsx'
 import Panel from './pages/Panel.jsx'
 import Radicacion from './pages/Radicacion.jsx'
@@ -31,11 +32,14 @@ function RequiereSesion({ children }) {
 
 /**
  * Guarda por permiso (HU-013): aunque el menú ya oculta la vista, una URL escrita
- * a mano no debe mostrar una página cuyo API va a responder 403.
+ * a mano no debe mostrar una página cuyo API va a responder 403. Acepta varios
+ * permisos alternativos, porque hay vistas que sirven a dos papeles (quien consulta y
+ * quien administra).
  */
-function RequierePermiso({ permiso, children }) {
+function RequierePermiso({ permiso, permisos, children }) {
   const { puede } = useSesion()
-  return puede(permiso) ? children : <Navigate to="/app" replace />
+  const exigidos = permisos ?? [permiso]
+  return exigidos.some((codigo) => puede(codigo)) ? children : <Navigate to="/app" replace />
 }
 
 function App() {
@@ -49,6 +53,7 @@ function App() {
         <Route path="bandeja" element={<RequierePermiso permiso="flujo:aprobar"><Bandeja /></RequierePermiso>} />
         <Route path="flujos" element={<RequierePermiso permiso="flujos:administrar"><Flujos /></RequierePermiso>} />
         <Route path="flujos/:id" element={<RequierePermiso permiso="flujos:administrar"><DisenadorFlujo /></RequierePermiso>} />
+        <Route path="grupos" element={<RequierePermiso permisos={['flujo:aprobar', 'flujos:administrar']}><Grupos /></RequierePermiso>} />
         <Route path="usuarios" element={<RequierePermiso permiso="usuarios:consultar"><Usuarios /></RequierePermiso>} />
         <Route path="roles" element={<RequierePermiso permiso="roles:consultar"><Roles /></RequierePermiso>} />
         <Route path="configuracion" element={<RequierePermiso permiso="catalogos:consultar"><Configuracion /></RequierePermiso>} />

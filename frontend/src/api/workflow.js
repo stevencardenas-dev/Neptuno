@@ -170,3 +170,25 @@ export function ejecutarTarea(id, datos) {
 export function liberarTarea(id) {
   return peticion(`/tareas/${id}/liberar`, { metodo: 'POST', base: BASE_WORKFLOW })
 }
+
+/** HU-069: grupos de trabajo que pueden atender un paso. */
+export function listarGrupos() {
+  return peticion('/grupos', { base: BASE_WORKFLOW })
+}
+
+export function crearGrupo(datos) {
+  return peticion('/grupos', { metodo: 'POST', cuerpo: datos, base: BASE_WORKFLOW })
+}
+
+export function editarGrupo(id, datos) {
+  return peticion(`/grupos/${id}`, { metodo: 'PUT', cuerpo: datos, base: BASE_WORKFLOW })
+}
+
+export function eliminarGrupo(id) {
+  return peticion(`/grupos/${id}`, { metodo: 'DELETE', base: BASE_WORKFLOW })
+}
+
+/** HU-069: reemplazar la lista de miembros de un grupo. */
+export function reemplazarMiembrosDeGrupo(id, usuarios) {
+  return peticion(`/grupos/${id}/miembros`, { metodo: 'PUT', cuerpo: { usuarios }, base: BASE_WORKFLOW })
+}

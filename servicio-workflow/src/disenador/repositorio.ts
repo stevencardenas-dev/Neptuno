@@ -606,6 +606,15 @@ export class RepositorioDisenador {
     return publicada!;
   }
 
+  /** HU-069: el grupo de trabajo existe (los grupos viven en este mismo servicio). */
+  async grupoExiste(id: string): Promise<boolean> {
+    const [filas] = await this.pool.query<RowDataPacket[]>(
+      'select 1 from grupo_trabajo where id = uuid_to_bin(?)',
+      [id],
+    );
+    return filas.length > 0;
+  }
+
   /**
    * HU-050: trámites de este flujo que aún no terminan. Todavía no existen trámites
    * (HU-062), así que no hay nada que contar; al crear esa tabla, la consulta va aquí.

@@ -297,13 +297,26 @@ export class RepositorioTramites {
                    (er.tipo_sujeto = 'USUARIO' and er.sujeto_id = uuid_to_bin(?))
                    ${delRol}
                    or (er.tipo_sujeto = 'AREA' and er.sujeto_id = uuid_to_bin(?))
+                   or (er.tipo_sujeto = 'GRUPO' and exists (
+                     select 1 from grupo_miembro gm
+                      where gm.grupo_id = er.sujeto_id and gm.usuario_id = uuid_to_bin(?)
+                   ))
                  )
             )
           )
         order by (ta.vence_en is null), ta.vence_en asc, ta.creada_en asc`,
-      [actor.id, verTodas ? 1 : 0, actor.id, ...roles, actor.areaId ?? SIN_UUID],
+      [actor.id, verTodas ? 1 : 0, actor.id, ...roles, actor.areaId ?? SIN_UUID, actor.id],
     );
     return this.completarTareas(filas, actor, verTodas);
+  }
+
+  /** HU-069: grupos a los que pertenece un usuario. */
+  async gruposDeUsuario(usuarioId: string): Promise<string[]> {
+    const [filas] = await this.pool.query<RowDataPacket[]>(
+      'select bin_to_uuid(grupo_id) as id from grupo_miembro where usuario_id = uuid_to_bin(?)',
+      [usuarioId],
+    );
+    return filas.map((fila) => fila.id as string);
   }
 
   /** Añade responsables y acciones a las filas, con una sola consulta por bloque. */

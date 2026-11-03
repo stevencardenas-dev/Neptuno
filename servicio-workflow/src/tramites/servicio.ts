@@ -116,7 +116,7 @@ export class ServicioTramites {
     if (tarea.asignadaA && tarea.asignadaA !== actor.id) throw conflicto('Otra persona tomó esta tarea.');
 
     const responsables = await this.repo.responsablesDe(tarea.pasoId);
-    if (!esResponsable(actor, responsables) && !actor.permisos.has('flujos:administrar')) {
+    if (!(await this.esResponsableDe(actor, responsables)) && !actor.permisos.has('flujos:administrar')) {
       throw prohibido('Esta tarea está asignada a otra persona.');
     }
     await this.repo.tomar(tareaId, autor(actor));
@@ -148,7 +148,7 @@ export class ServicioTramites {
     if (tarea.asignadaA && tarea.asignadaA !== actor.id) throw conflicto('Otra persona tomó esta tarea.');
 
     const responsables = await this.repo.responsablesDe(tarea.pasoId);
-    if (!esResponsable(actor, responsables) && !actor.permisos.has('flujos:administrar')) {
+    if (!(await this.esResponsableDe(actor, responsables)) && !actor.permisos.has('flujos:administrar')) {
       throw prohibido('Esta tarea está asignada a otra persona.');
     }
 
@@ -197,10 +197,10 @@ export class ServicioTramites {
     return detalle;
   }
 
-  private ajustar(detalle: TramiteDetalle, actor: Actor): TramiteDetalle {
+  private async ajustar(detalle: TramiteDetalle, actor: Actor): Promise<TramiteDetalle> {
     const tarea = detalle.tareaAbierta;
     if (!tarea) return detalle;
-    const atiende = esResponsable(actor, tarea.responsables);
+    const atiende = await this.esResponsableDe(actor, tarea.responsables);
     const administra = actor.permisos.has('flujos:administrar');
     tarea.esMia = tarea.asignadaA === actor.id;
     tarea.supervision = administra && !atiende;
@@ -208,6 +208,15 @@ export class ServicioTramites {
     if (tarea.asignadaA && tarea.asignadaA !== actor.id) tarea.acciones = [];
     if (!atiende && !administra) tarea.acciones = [];
     return detalle;
+  }
+
+  /** ¿El actor atiende el paso? Los grupos se resuelven solo cuando hacen falta (HU-069). */
+  private async esResponsableDe(actor: Actor, responsables: Parameters<typeof esResponsable>[1]): Promise<boolean> {
+    if (!responsables.some((responsable) => responsable.tipoSujeto === 'GRUPO')) {
+      return esResponsable(actor, responsables);
+    }
+    const grupos = await this.repo.gruposDeUsuario(actor.id);
+    return esResponsable(actor, responsables, grupos);
   }
 
   private async exigirFlujo(id: string): Promise<void> {

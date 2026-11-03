@@ -39,7 +39,7 @@ test.describe('Autenticación (HU-001, HU-002)', () => {
     // El menú cambió con el rediseño: además de administración aparecen radicación,
     // flujo de trabajo y auditoría, y solo se ofrece lo que el rol puede hacer.
     await expect(enlacesDelMenu(page)).toHaveText([
-      'Panel', 'Radicados', 'Copias recibidas', 'Bandeja', 'Flujos', 'Bitácora', 'Usuarios', 'Roles y permisos', 'Parámetros',
+      'Panel', 'Radicados', 'Copias recibidas', 'Bandeja', 'Flujos', 'Grupos', 'Bitácora', 'Usuarios', 'Roles y permisos', 'Parámetros',
     ])
 
     // Las 5 métricas van en una sola fila en escritorio y no se ven como texto subrayado.

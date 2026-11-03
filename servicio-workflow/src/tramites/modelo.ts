@@ -138,12 +138,14 @@ export interface TramiteDetalle {
 export function esResponsable(
   actor: { id: string; areaId?: string; rolesIds: string[] },
   responsables: ResponsablePaso[],
+  grupos: string[] = [],
 ): boolean {
   if (!responsables.length) return true;
   return responsables.some((responsable) => {
     if (responsable.tipoSujeto === 'USUARIO') return responsable.sujetoId === actor.id;
     if (responsable.tipoSujeto === 'AREA') return responsable.sujetoId === actor.areaId;
     if (responsable.tipoSujeto === 'ROL') return actor.rolesIds.includes(responsable.sujetoId);
+    if (responsable.tipoSujeto === 'GRUPO') return grupos.includes(responsable.sujetoId);
     return false;
   });
 }

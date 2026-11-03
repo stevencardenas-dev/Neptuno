@@ -26,6 +26,7 @@ const grupos = [
     enlaces: [
       { to: '/app/bandeja', label: 'Bandeja', Icono: IconBandeja, permiso: 'flujo:aprobar' },
       { to: '/app/flujos', label: 'Flujos', Icono: IconFlujo, permiso: 'flujos:administrar' },
+      { to: '/app/grupos', label: 'Grupos', Icono: IconUsuarios, permisos: ['flujo:aprobar', 'flujos:administrar'] },
     ],
   },
   {
@@ -53,6 +54,7 @@ const secciones = {
   '/app/copias': 'Radicación',
   '/app/flujos': 'Flujo de trabajo',
   '/app/bandeja': 'Flujo de trabajo',
+  '/app/grupos': 'Flujo de trabajo',
   '/app/bitacora': 'Auditoría',
   '/app/usuarios': 'Administración',
   '/app/roles': 'Administración',
@@ -68,8 +70,9 @@ function Layout() {
     .filter(([ruta]) => pathname === ruta || pathname.startsWith(`${ruta}/`))
     .sort(([uno], [otro]) => otro.length - uno.length)[0]?.[1] ?? 'Gestión documental'
 
+  const permitido = (enlace) => (enlace.permisos ?? (enlace.permiso ? [enlace.permiso] : [])).some((codigo) => puede(codigo)) || (!enlace.permiso && !enlace.permisos)
   const visibles = grupos
-    .map((grupo) => ({ ...grupo, enlaces: grupo.enlaces.filter((enlace) => !enlace.permiso || puede(enlace.permiso)) }))
+    .map((grupo) => ({ ...grupo, enlaces: grupo.enlaces.filter(permitido) }))
     .filter((grupo) => grupo.enlaces.length)
 
   async function salir() {
