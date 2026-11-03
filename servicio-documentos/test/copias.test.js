@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { crearServicioCopias } from '../src/copias/servicio.js';
 
-// HU-041: una copia se envía a un usuario activo, que no sea quien la envía, y un
-// radicado anulado no admite copias.
+// HU-041, HU-042: una copia se envía a un usuario activo y solo su destinatario la ve
+// y la marca como leída.
 
 const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const RADICADO = uuid(1);
@@ -55,4 +55,14 @@ test('un radicado anulado no recibe copias', async () => {
     servicio.enviar(actor, RADICADO, { destinatarioId: DESTINO }),
     (error) => error.estado === 409,
   );
+});
+
+test('la bandeja es la del destinatario y solo él marca la copia como leída', async () => {
+  const { servicio } = escenario();
+  assert.deepEqual(await servicio.bandeja({ id: DESTINO }), [{ destinatarioId: DESTINO, soloNoLeidas: false }]);
+  await assert.rejects(
+    servicio.marcarLeida({ id: AUTOR }, uuid(9)),
+    (error) => error.estado === 404,
+  );
+  assert.equal((await servicio.marcarLeida({ id: DESTINO }, uuid(9))).actualizada, true);
 });

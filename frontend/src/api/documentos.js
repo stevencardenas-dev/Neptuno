@@ -96,3 +96,12 @@ export function enviarCopia(radicadoId, datos) {
 export function copiasEnviadas(radicadoId) {
   return peticion(`/radicados/${radicadoId}/copias`, { base: BASE_DOCUMENTOS })
 }
+
+/** HU-042: bandeja secundaria de quien recibe copias. */
+export function bandejaDeCopias(filtros = {}) {
+  return peticion('/copias', { parametros: filtros, base: BASE_DOCUMENTOS })
+}
+
+export function marcarCopiaLeida(id) {
+  return peticion(`/copias/${id}/leer`, { metodo: 'POST', base: BASE_DOCUMENTOS })
+}

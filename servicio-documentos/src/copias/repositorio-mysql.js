@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { conflicto } from '../errores.js';
+import { conflicto, noEncontrado } from '../errores.js';
 
 const aBuffer = (uuid) => (uuid == null ? null : Buffer.from(uuid.replaceAll('-', ''), 'hex'));
 const aUuid = (buf) => {
@@ -89,6 +89,18 @@ export function crearRepositorioCopias(pool) {
       return leer(id);
     },
 
+    /** HU-042: la bandeja secundaria de un destinatario. */
+    async bandeja(destinatarioId, { soloNoLeidas = false } = {}) {
+      const [filas] = await pool.execute(
+        `select ${COLUMNAS}
+           from copia_informativa c join radicado r on r.id = c.radicado_id
+          where c.destinatario_id = ? ${soloNoLeidas ? 'and c.leida_en is null' : ''}
+          order by c.leida_en is not null, c.enviada_en desc`,
+        [aBuffer(destinatarioId)],
+      );
+      return filas.map(aCopia);
+    },
+
     async enviadas(radicadoId) {
       const [filas] = await pool.execute(
         `select ${COLUMNAS}
@@ -99,5 +111,20 @@ export function crearRepositorioCopias(pool) {
       return filas.map(aCopia);
     },
 
+    async obtener(id) {
+      return leer(id);
+    },
+
+    /** HU-042: marcar leída solo si quien pide es el destinatario. */
+    async marcarLeida(id, destinatarioId) {
+      const [resultado] = await pool.execute(
+        'update copia_informativa set leida_en = ? where id = ? and destinatario_id = ? and leida_en is null',
+        [new Date(), aBuffer(id), aBuffer(destinatarioId)],
+      );
+      const copia = await leer(id);
+      if (!copia) throw noEncontrado('La copia no existe.');
+      if (copia.destinatarioId !== destinatarioId) throw noEncontrado('La copia no existe.');
+      return { ...copia, actualizada: resultado.affectedRows > 0 };
+    },
   };
 }

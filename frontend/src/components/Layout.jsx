@@ -3,7 +3,7 @@ import { alternarTema, temaActual } from '../util/tema.js'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useSesion } from '../sesion/SesionProvider.jsx'
 import {
-  IconBandeja, IconConfig, IconDocumentos, IconEscudo, IconFlujo, IconResumen, IconRoles, IconSalir, IconTridente, IconUsuarios,
+  IconArchivo, IconBandeja, IconConfig, IconDocumentos, IconEscudo, IconFlujo, IconResumen, IconRoles, IconSalir, IconTridente, IconUsuarios,
 } from './Icons.jsx'
 
 // Cada vista con `permiso` solo se ofrece si la sesión trae ese permiso (HU-013).
@@ -18,6 +18,7 @@ const grupos = [
     titulo: 'Radicación',
     enlaces: [
       { to: '/app/radicacion', label: 'Radicados', Icono: IconDocumentos, permiso: 'radicados:consultar' },
+      { to: '/app/copias', label: 'Copias recibidas', Icono: IconArchivo },
     ],
   },
   {
@@ -49,6 +50,7 @@ const grupos = [
 const secciones = {
   '/app': 'Inicio',
   '/app/radicacion': 'Radicación',
+  '/app/copias': 'Radicación',
   '/app/flujos': 'Flujo de trabajo',
   '/app/bandeja': 'Flujo de trabajo',
   '/app/bitacora': 'Auditoría',
