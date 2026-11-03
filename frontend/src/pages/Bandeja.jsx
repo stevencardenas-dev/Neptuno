@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Card, KV, Modal, Note, PageHead } from '../components/ui.jsx'
 import { usePeticion } from '../api/usePeticion.js'
 import { consultarTramite, ejecutarTarea, liberarTarea, listarBandeja, tomarTarea } from '../api/workflow.js'
-import { formatearFecha, formatearFechaHora } from '../util/formato.js'
+import { listarTiposDocumentales } from '../api/catalogos.js'
+import { formatearFecha, formatearFechaHora, etiquetaOrigen } from '../util/formato.js'
 import { IconBandeja, IconCheck, IconInfo } from '../components/Icons.jsx'
 
 /**
@@ -222,12 +223,22 @@ function AtenderTarea({ tarea, onCerrar, onHecho }) {
   )
 }
 
+/** HU-064: sin filtros, la bandeja sale ordenada por vencimiento. */
+const FILTROS_VACIOS = { tipoDocumentalId: '', origen: '', orden: 'VENCIMIENTO', vencidas: false, desde: '', hasta: '' }
+
 export default function Bandeja() {
-  const bandeja = usePeticion(listarBandeja, [])
+  const [filtros, setFiltros] = useState(FILTROS_VACIOS)
+  const tipos = usePeticion(() => listarTiposDocumentales({ estado: 'ACTIVO', tamano: 100 }), [])
+  const bandeja = usePeticion(() => listarBandeja(filtros), [filtros])
   const [atendiendo, setAtendiendo] = useState(null)
 
   const tareas = bandeja.datos ?? []
   const sinTomar = tareas.filter((tarea) => tarea.estado === 'PENDIENTE').length
+  const conFiltros = Boolean(filtros.tipoDocumentalId || filtros.origen || filtros.vencidas || filtros.desde || filtros.hasta || filtros.orden !== 'VENCIMIENTO')
+
+  function cambiar(campo, valor) {
+    setFiltros((actuales) => ({ ...actuales, [campo]: valor }))
+  }
 
   return (
     <>
@@ -241,12 +252,34 @@ export default function Bandeja() {
         ]}
       />
 
-      <div className="toolbar">
+      <div className="toolbar" style={{ flexWrap: 'wrap' }}>
         <span className="badge azul"><IconBandeja size={13} /> {tareas.length} {tareas.length === 1 ? 'tarea' : 'tareas'}</span>
         <span className="badge gris">{sinTomar} sin tomar</span>
-        <span className="muted small" style={{ marginLeft: 'auto' }}>
-          Ordenadas por vencimiento
-        </span>
+
+        <select aria-label="Tipo documental" value={filtros.tipoDocumentalId} onChange={(e) => cambiar('tipoDocumentalId', e.target.value)}>
+          <option value="">Todos los tipos</option>
+          {(tipos.datos ?? []).map((tipo) => <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>)}
+        </select>
+        <select aria-label="Origen" value={filtros.origen} onChange={(e) => cambiar('origen', e.target.value)}>
+          <option value="">Todos los orígenes</option>
+          <option value="INTERNO">Interno</option>
+          <option value="EXTERNO">Externo</option>
+          <option value="RECIBIDO">Recibido</option>
+        </select>
+        <select aria-label="Orden" value={filtros.orden} onChange={(e) => cambiar('orden', e.target.value)}>
+          <option value="VENCIMIENTO">Por vencimiento</option>
+          <option value="RECIENTES">Más recientes</option>
+          <option value="ANTIGUOS">Más antiguas</option>
+        </select>
+        <input type="date" aria-label="Creadas desde" value={filtros.desde} onChange={(e) => cambiar('desde', e.target.value)} />
+        <input type="date" aria-label="Creadas hasta" value={filtros.hasta} onChange={(e) => cambiar('hasta', e.target.value)} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={filtros.vencidas} onChange={(e) => cambiar('vencidas', e.target.checked)} />
+          <span>Solo vencidas</span>
+        </label>
+        {conFiltros ? (
+          <button className="btn ghost sm" type="button" onClick={() => setFiltros(FILTROS_VACIOS)}>Limpiar filtros</button>
+        ) : null}
       </div>
 
       {bandeja.error ? <div className="error-message mt-16">{bandeja.error}</div> : null}
@@ -258,6 +291,7 @@ export default function Bandeja() {
               <tr>
                 <th>Radicado</th>
                 <th>Flujo y paso</th>
+                <th>Origen</th>
                 <th>Plazo</th>
                 <th>Estado</th>
                 <th style={{ textAlign: 'right' }}>Acciones</th>
@@ -277,6 +311,7 @@ export default function Bandeja() {
                       <strong>{tarea.paso.nombre}</strong>
                       <span className="cell-sub">{tarea.flujoNombre}</span>
                     </td>
+                    <td className="muted">{tarea.origen ? etiquetaOrigen(tarea.origen) : '—'}</td>
                     <td><span className={`badge ${tonoPlazo.tono}`}>{tonoPlazo.texto}</span></td>
                     <td>
                       <span className={`badge ${estado.tono}`}>{estado.texto}</span>

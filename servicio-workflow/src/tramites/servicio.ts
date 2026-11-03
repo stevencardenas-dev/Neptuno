@@ -9,9 +9,11 @@ import { RepositorioTramites } from './repositorio';
 import {
   esResponsable,
   esquemaEjecutar,
+  esquemaFiltrosBandeja,
   esquemaIniciar,
   esquemaTiposDocumentales,
   EjecutarTarea,
+  FiltrosBandeja,
   FlujoDisponible,
   IniciarTramite,
   TareaBandeja,
@@ -88,6 +90,8 @@ export class ServicioTramites {
         radicadoId: radicado.id,
         radicadoCodigo: radicado.codigo,
         radicadoAsunto: radicado.asunto,
+        tipoDocumentalId: radicado.tipoDocumentalId,
+        origen: radicado.origen,
         flujoId: flujo.id,
         flujoNombre: flujo.nombre,
         versionId: flujo.versionId,
@@ -103,9 +107,13 @@ export class ServicioTramites {
     return (await this.detalle(id, actor))!;
   }
 
-  /** HU-063: la bandeja del actor, o todas si administra flujos. */
-  async bandeja(actor: Actor): Promise<TareaBandeja[]> {
-    return this.repo.bandeja(actor, actor.permisos.has('flujos:administrar'));
+  /** HU-063, HU-064: la bandeja del actor, filtrada y ordenada. */
+  async bandeja(actor: Actor, consulta: Record<string, unknown> = {}): Promise<TareaBandeja[]> {
+    const filtros = this.validar<FiltrosBandeja>(consulta, esquemaFiltrosBandeja);
+    if (filtros.desde && filtros.hasta && filtros.desde > filtros.hasta) {
+      throw datosInvalidos('La fecha inicial no puede ser posterior a la final.');
+    }
+    return this.repo.bandeja(actor, actor.permisos.has('flujos:administrar'), filtros);
   }
 
   /** HU-070: tomar la tarea en exclusiva antes de decidir. */

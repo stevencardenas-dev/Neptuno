@@ -88,6 +88,9 @@ export interface TareaBandeja {
   radicadoAsunto: string;
   flujoId: string;
   flujoNombre: string;
+  /** HU-064: datos copiados al abrir el trámite para filtrar la bandeja. */
+  tipoDocumentalId: string | null;
+  origen: string | null;
   paso: { id: string; nombre: string; tipo: string };
   estado: 'PENDIENTE' | 'TOMADA';
   asignadaA: string | null;
@@ -133,6 +136,26 @@ export interface TramiteDetalle {
   tareaAbierta: TareaBandeja | null;
   movimientos: MovimientoTramite[];
 }
+
+/** HU-064: filtros y orden de la bandeja. Los vacíos del formulario no filtran. */
+const opcional = <T extends z.ZodTypeAny>(esquema: T) =>
+  z.preprocess((valor) => (valor === '' || valor === null ? undefined : valor), esquema.optional());
+
+const fecha = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener el formato AAAA-MM-DD.');
+
+export const esquemaFiltrosBandeja = z.object({
+  desde: opcional(fecha),
+  hasta: opcional(fecha),
+  tipoDocumentalId: opcional(z.string().uuid('El tipo documental no es válido.')),
+  origen: opcional(z.enum(['INTERNO', 'EXTERNO', 'RECIBIDO'])),
+  vencidas: z.preprocess((valor) => valor === true || valor === 'true', z.boolean()).default(false),
+  orden: z.preprocess(
+    (valor) => (valor === '' || valor === null ? undefined : valor),
+    z.enum(['VENCIMIENTO', 'RECIENTES', 'ANTIGUOS']).default('VENCIMIENTO'),
+  ),
+});
+
+export type FiltrosBandeja = z.infer<typeof esquemaFiltrosBandeja>;
 
 /** ¿El actor atiende este paso? Sin responsables, el paso es de bolsa común. */
 export function esResponsable(

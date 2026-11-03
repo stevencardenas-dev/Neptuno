@@ -49,11 +49,11 @@ export class TramitesControlador {
     return this.servicio.exigirPorRadicado(radicadoId, actor);
   }
 
-  /** HU-063: la bandeja del usuario autenticado. */
+  /** HU-063, HU-064: la bandeja del usuario autenticado, con filtros y orden. */
   @Get('bandeja')
   @RequierePermiso('flujo:aprobar')
-  bandeja(@ActorActual() actor: Actor) {
-    return this.servicio.bandeja(actor);
+  bandeja(@ActorActual() actor: Actor, @Query() consulta: Record<string, unknown>) {
+    return this.servicio.bandeja(actor, consulta);
   }
 
   /** El trámite de un radicado (para la pantalla de radicación); null si no tiene. */

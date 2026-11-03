@@ -13,7 +13,7 @@ import type {
   TareaBandeja,
   TramiteDetalle,
 } from './modelo';
-import { esResponsable } from './modelo';
+import { esResponsable, type FiltrosBandeja } from './modelo';
 
 /** UUID nulo: se usa para que un actor sin área no coincida con ningún responsable. */
 const SIN_UUID = '00000000-0000-0000-0000-000000000000';
@@ -67,6 +67,8 @@ interface FilaBandeja extends FilaTarea {
   radicadoAsunto: string;
   flujoId: string;
   flujoNombre: string;
+  tipoDocumentalId: string | null;
+  origen: string | null;
 }
 
 interface FilaResponsable extends RowDataPacket {
@@ -205,6 +207,8 @@ export class RepositorioTramites {
       radicadoId: string;
       radicadoCodigo: string;
       radicadoAsunto: string;
+      tipoDocumentalId?: string | null;
+      origen?: string | null;
       flujoId: string;
       flujoNombre: string;
       versionId: string;
@@ -218,12 +222,13 @@ export class RepositorioTramites {
     await enTransaccion(this.pool, async (cx) => {
       try {
         await cx.query(
-          `insert into tramite (id, radicado_id, radicado_codigo, radicado_asunto, flujo_id, flujo_nombre,
-             version_id, estado_actual_id, estado, iniciado_por, iniciado_en, vence_en)
-           values (uuid_to_bin(?), uuid_to_bin(?), ?, ?, uuid_to_bin(?), ?, uuid_to_bin(?), uuid_to_bin(?),
-                   'EN_CURSO', uuid_to_bin(?), ?, ?)`,
+          `insert into tramite (id, radicado_id, radicado_codigo, radicado_asunto, tipo_documental_id, origen,
+             flujo_id, flujo_nombre, version_id, estado_actual_id, estado, iniciado_por, iniciado_en, vence_en)
+           values (uuid_to_bin(?), uuid_to_bin(?), ?, ?, uuid_to_bin(?), ?, uuid_to_bin(?), ?, uuid_to_bin(?),
+                   uuid_to_bin(?), 'EN_CURSO', uuid_to_bin(?), ?, ?)`,
           [
-            id, datos.radicadoId, datos.radicadoCodigo, datos.radicadoAsunto, datos.flujoId, datos.flujoNombre,
+            id, datos.radicadoId, datos.radicadoCodigo, datos.radicadoAsunto,
+            datos.tipoDocumentalId ?? null, datos.origen ?? null, datos.flujoId, datos.flujoNombre,
             datos.versionId, datos.estadoInicial.id, actor.id, ahora, sumarMinutos(ahora, datos.slaGlobal),
           ],
         );
@@ -271,41 +276,79 @@ export class RepositorioTramites {
     );
   }
 
-  /** HU-063: tareas abiertas que el actor puede atender, con su paso y su radicado. */
-  async bandeja(actor: { id: string; areaId?: string; rolesIds: string[] }, verTodas: boolean): Promise<TareaBandeja[]> {
+  /**
+   * HU-063, HU-064: tareas abiertas que el actor puede atender, filtradas por fecha de
+   * creación, tipo documental, origen y vencimiento, y ordenadas según pida la vista.
+   */
+  async bandeja(
+    actor: { id: string; areaId?: string; rolesIds: string[] },
+    verTodas: boolean,
+    filtros: FiltrosBandeja,
+  ): Promise<TareaBandeja[]> {
     const roles = actor.rolesIds.filter(Boolean);
     const delRol = roles.length ? `or (er.tipo_sujeto = 'ROL' and er.sujeto_id in (${marcadores(roles)}))` : '';
+    const condiciones = [
+      "ta.estado in ('PENDIENTE', 'TOMADA')",
+      `(ta.asignada_a = uuid_to_bin(?)
+        or ? = 1
+        or not exists (select 1 from estado_responsable er0 where er0.estado_id = ta.estado_flujo_id)
+        or exists (
+          select 1 from estado_responsable er
+           where er.estado_id = ta.estado_flujo_id
+             and (
+               (er.tipo_sujeto = 'USUARIO' and er.sujeto_id = uuid_to_bin(?))
+               ${delRol}
+               or (er.tipo_sujeto = 'AREA' and er.sujeto_id = uuid_to_bin(?))
+               or (er.tipo_sujeto = 'GRUPO' and exists (
+                 select 1 from grupo_miembro gm
+                  where gm.grupo_id = er.sujeto_id and gm.usuario_id = uuid_to_bin(?)
+               ))
+             )
+        ))`,
+    ];
+    const parametros: unknown[] = [actor.id, verTodas ? 1 : 0, actor.id, ...roles, actor.areaId ?? SIN_UUID, actor.id];
+
+    if (filtros.desde) {
+      condiciones.push('ta.creada_en >= ?');
+      parametros.push(new Date(`${filtros.desde}T00:00:00Z`));
+    }
+    if (filtros.hasta) {
+      condiciones.push('ta.creada_en < ?');
+      parametros.push(new Date(new Date(`${filtros.hasta}T00:00:00Z`).getTime() + 86_400_000));
+    }
+    if (filtros.tipoDocumentalId) {
+      condiciones.push('tr.tipo_documental_id = uuid_to_bin(?)');
+      parametros.push(filtros.tipoDocumentalId);
+    }
+    if (filtros.origen) {
+      condiciones.push('tr.origen = ?');
+      parametros.push(filtros.origen);
+    }
+    if (filtros.vencidas) {
+      condiciones.push('ta.vence_en is not null and ta.vence_en < ?');
+      parametros.push(new Date());
+    }
+
+    const orden = filtros.orden === 'RECIENTES'
+      ? 'ta.creada_en desc, ta.vence_en asc'
+      : filtros.orden === 'ANTIGUOS'
+        ? 'ta.creada_en asc'
+        : '(ta.vence_en is null), ta.vence_en asc, ta.creada_en asc';
+
     const [filas] = await this.pool.query<FilaBandeja[]>(
       `select bin_to_uuid(ta.id) as id, bin_to_uuid(ta.tramite_id) as tramiteId, ta.estado,
               bin_to_uuid(ta.asignada_a) as asignadaA, ta.tomada_en as tomadaEn, ta.creada_en as creadaEn,
               ta.vence_en as venceEn, bin_to_uuid(es.id) as pasoId, es.nombre as pasoNombre, es.tipo as pasoTipo,
               bin_to_uuid(es.id) as estadoFlujoId,
               bin_to_uuid(tr.radicado_id) as radicadoId, tr.radicado_codigo as radicadoCodigo,
-              tr.radicado_asunto as radicadoAsunto, bin_to_uuid(tr.flujo_id) as flujoId, tr.flujo_nombre as flujoNombre
+              tr.radicado_asunto as radicadoAsunto, bin_to_uuid(tr.flujo_id) as flujoId, tr.flujo_nombre as flujoNombre,
+              bin_to_uuid(tr.tipo_documental_id) as tipoDocumentalId, tr.origen as origen
          from tarea ta
          join tramite tr on tr.id = ta.tramite_id
          join estado_flujo es on es.id = ta.estado_flujo_id
-        where ta.estado in ('PENDIENTE', 'TOMADA')
-          and (
-            ta.asignada_a = uuid_to_bin(?)
-            or ? = 1
-            or not exists (select 1 from estado_responsable er0 where er0.estado_id = ta.estado_flujo_id)
-            or exists (
-              select 1 from estado_responsable er
-               where er.estado_id = ta.estado_flujo_id
-                 and (
-                   (er.tipo_sujeto = 'USUARIO' and er.sujeto_id = uuid_to_bin(?))
-                   ${delRol}
-                   or (er.tipo_sujeto = 'AREA' and er.sujeto_id = uuid_to_bin(?))
-                   or (er.tipo_sujeto = 'GRUPO' and exists (
-                     select 1 from grupo_miembro gm
-                      where gm.grupo_id = er.sujeto_id and gm.usuario_id = uuid_to_bin(?)
-                   ))
-                 )
-            )
-          )
-        order by (ta.vence_en is null), ta.vence_en asc, ta.creada_en asc`,
-      [actor.id, verTodas ? 1 : 0, actor.id, ...roles, actor.areaId ?? SIN_UUID, actor.id],
+        where ${condiciones.join(' and ')}
+        order by ${orden}`,
+      parametros,
     );
     return this.completarTareas(filas, actor, verTodas);
   }
@@ -353,6 +396,8 @@ export class RepositorioTramites {
       radicadoAsunto: (fila as FilaBandeja).radicadoAsunto,
       flujoId: (fila as FilaBandeja).flujoId,
       flujoNombre: (fila as FilaBandeja).flujoNombre,
+      tipoDocumentalId: (fila as FilaBandeja).tipoDocumentalId ?? null,
+      origen: (fila as FilaBandeja).origen ?? null,
       paso: { id: fila.pasoId, nombre: fila.pasoNombre, tipo: fila.pasoTipo },
       estado: fila.estado as 'PENDIENTE' | 'TOMADA',
       asignadaA,
