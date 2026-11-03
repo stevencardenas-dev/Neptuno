@@ -1,5 +1,5 @@
 // Package operacion reúne los requerimientos no funcionales de ms-audit-infra:
-// copias de seguridad programadas (HU-081), medición de
+// copias de seguridad programadas y su restauración (HU-081, HU-082), medición de
 // tiempos de respuesta (HU-084) y registro de pruebas de carga (HU-085).
 package operacion
 
@@ -25,6 +25,15 @@ const (
 	RespaldoCompletado = "COMPLETADO"
 	RespaldoFallido    = "FALLIDO"
 	RespaldoExpirado   = "EXPIRADO"
+)
+
+// Estados de una restauración.
+const (
+	RestauracionSolicitada = "SOLICITADA"
+	RestauracionEnCurso    = "EN_CURSO"
+	RestauracionCompletada = "COMPLETADA"
+	RestauracionFallida    = "FALLIDA"
+	RestauracionCancelada  = "CANCELADA"
 )
 
 // Programacion es la copia de seguridad periódica configurada (HU-081). Solo hay una
@@ -55,6 +64,21 @@ type Respaldo struct {
 	FinalizadoEn   *time.Time `json:"finalizadoEn"`
 	ExpiraEn       *time.Time `json:"expiraEn"`
 	MensajeError   *string    `json:"mensajeError"`
+}
+
+// Restauracion es la solicitud de volver a cargar un respaldo (HU-082). Lleva quién la
+// pidió y quién la confirmó: restaurar sobrescribe datos y no puede quedar anónimo.
+type Restauracion struct {
+	ID            string     `json:"id"`
+	RespaldoID    string     `json:"respaldoId"`
+	Estado        string     `json:"estado"`
+	Motivo        string     `json:"motivo"`
+	SolicitadaPor string     `json:"solicitadaPor"`
+	SolicitadaEn  time.Time  `json:"solicitadaEn"`
+	ConfirmadaPor *string    `json:"confirmadaPor"`
+	IniciadaEn    *time.Time `json:"iniciadaEn"`
+	FinalizadaEn  *time.Time `json:"finalizadaEn"`
+	Resultado     *string    `json:"resultado"`
 }
 
 // Medicion es una ventana de tiempos de respuesta frente al límite de 2 s (HU-084).

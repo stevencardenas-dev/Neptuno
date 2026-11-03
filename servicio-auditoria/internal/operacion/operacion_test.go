@@ -1,8 +1,11 @@
 package operacion
 
 import (
+	"net/http"
 	"testing"
 	"time"
+
+	"neptuno/auditoria/internal/comun"
 )
 
 // TestPercentil comprueba el método del índice más cercano, que es el que usan k6 y
@@ -104,4 +107,25 @@ func rango(desde, hasta int) []int {
 		valores = append(valores, i)
 	}
 	return valores
+}
+
+// HU-082: una restauración solo se confirma si sigue solicitada y si quien confirma no es
+// quien la pidió; el error de la segunda regla es un 403, no un 400.
+func TestConfirmacionDeRestauracion(t *testing.T) {
+	solicitada := Restauracion{Estado: RestauracionSolicitada, SolicitadaPor: "ana"}
+	if err := validarConfirmacion(solicitada, "luis"); err != nil {
+		t.Fatalf("otra persona debería poder confirmar: %v", err)
+	}
+	err := validarConfirmacion(solicitada, "ana")
+	api, ok := err.(*comun.ErrorApi)
+	if !ok || api.Estado != http.StatusForbidden {
+		t.Fatalf("quien pidió no puede confirmar (403), obtuvo %v", err)
+	}
+	for _, estado := range []string{RestauracionEnCurso, RestauracionCompletada, RestauracionFallida, RestauracionCancelada} {
+		err := validarConfirmacion(Restauracion{Estado: estado, SolicitadaPor: "ana"}, "luis")
+		api, ok := err.(*comun.ErrorApi)
+		if !ok || api.Estado != http.StatusBadRequest {
+			t.Errorf("en estado %s no se ejecuta (400), obtuvo %v", estado, err)
+		}
+	}
 }

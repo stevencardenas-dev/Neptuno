@@ -220,6 +220,80 @@ func (r *Repositorio) MarcarExpirado(ctx context.Context, id string) error {
 	return nil
 }
 
+// CrearRestauracion registra la solicitud (HU-082).
+func (r *Repositorio) CrearRestauracion(ctx context.Context, restauracion Restauracion) (Restauracion, error) {
+	crudo, texto := nuevoUUID()
+	restauracion.ID = texto
+	restauracion.Estado = RestauracionSolicitada
+	restauracion.SolicitadaEn = time.Now().UTC()
+	_, err := r.base.ExecContext(ctx, `insert into restauracion
+		(id, respaldo_id, estado, motivo, solicitada_por, solicitada_en)
+		values (?, ?, ?, ?, ?, ?)`,
+		crudo, aBinario(restauracion.RespaldoID), restauracion.Estado, restauracion.Motivo,
+		aBinario(restauracion.SolicitadaPor), restauracion.SolicitadaEn)
+	if err != nil {
+		return Restauracion{}, fmt.Errorf("no se pudo registrar la solicitud de restauración: %w", err)
+	}
+	return restauracion, nil
+}
+
+// ListarRestauraciones devuelve las solicitudes, de la más reciente a la más antigua.
+func (r *Repositorio) ListarRestauraciones(ctx context.Context, limite int) ([]Restauracion, error) {
+	const consulta = `select id, respaldo_id, estado, motivo, solicitada_por, solicitada_en,
+		confirmada_por, iniciada_en, finalizada_en, resultado
+		from restauracion order by solicitada_en desc limit ?`
+	filas, err := r.base.QueryContext(ctx, consulta, limite)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudieron listar las restauraciones: %w", err)
+	}
+	defer func() { _ = filas.Close() }()
+
+	restauraciones := []Restauracion{}
+	for filas.Next() {
+		restauracion, err := leerRestauracion(filas)
+		if err != nil {
+			return nil, err
+		}
+		restauraciones = append(restauraciones, restauracion)
+	}
+	return restauraciones, errorsDe(filas)
+}
+
+// ObtenerRestauracion devuelve una solicitud por su id.
+func (r *Repositorio) ObtenerRestauracion(ctx context.Context, id string) (Restauracion, error) {
+	const consulta = `select id, respaldo_id, estado, motivo, solicitada_por, solicitada_en,
+		confirmada_por, iniciada_en, finalizada_en, resultado
+		from restauracion where id = ?`
+	restauracion, err := leerRestauracion(r.base.QueryRowContext(ctx, consulta, aBinario(id)))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Restauracion{}, comun.NoEncontrado("La restauración no existe.")
+	}
+	return restauracion, err
+}
+
+// IniciarRestauracion deja constancia de quién la confirmó y de que empezó.
+func (r *Repositorio) IniciarRestauracion(ctx context.Context, id, confirmadaPor string) error {
+	_, err := r.base.ExecContext(ctx, `update restauracion
+		set estado = 'EN_CURSO', confirmada_por = ?, iniciada_en = ?
+		  where id = ? and estado = 'SOLICITADA'`,
+		aBinario(confirmadaPor), time.Now().UTC(), aBinario(id))
+	if err != nil {
+		return fmt.Errorf("no se pudo iniciar la restauración: %w", err)
+	}
+	return nil
+}
+
+// FinalizarRestauracion guarda si la restauración salió bien.
+func (r *Repositorio) FinalizarRestauracion(ctx context.Context, id, estado, resultado string) error {
+	_, err := r.base.ExecContext(ctx, `update restauracion
+		set estado = ?, resultado = ?, finalizada_en = ? where id = ?`,
+		estado, resultado, time.Now().UTC(), aBinario(id))
+	if err != nil {
+		return fmt.Errorf("no se pudo finalizar la restauración: %w", err)
+	}
+	return nil
+}
+
 // GuardarMediciones inserta una captura de tiempos de respuesta (HU-084).
 func (r *Repositorio) GuardarMediciones(ctx context.Context, mediciones []Medicion) error {
 	if len(mediciones) == 0 {
@@ -328,6 +402,33 @@ func leerRespaldo(fila lector) (Respaldo, error) {
 		respaldo.BasesIncluidas = []string{}
 	}
 	return respaldo, nil
+}
+
+func leerRestauracion(fila lector) (Restauracion, error) {
+	var (
+		restauracion Restauracion
+		id           []byte
+		respaldo     []byte
+		solicitante  []byte
+		confirmo     []byte
+	)
+	err := fila.Scan(&id, &respaldo, &restauracion.Estado, &restauracion.Motivo, &solicitante,
+		&restauracion.SolicitadaEn, &confirmo, &restauracion.IniciadaEn,
+		&restauracion.FinalizadaEn, &restauracion.Resultado)
+	if err != nil {
+		return Restauracion{}, err
+	}
+	if texto := aUUID(id); texto != nil {
+		restauracion.ID = *texto
+	}
+	if texto := aUUID(respaldo); texto != nil {
+		restauracion.RespaldoID = *texto
+	}
+	if texto := aUUID(solicitante); texto != nil {
+		restauracion.SolicitadaPor = *texto
+	}
+	restauracion.ConfirmadaPor = aUUID(confirmo)
+	return restauracion, nil
 }
 
 // decimalDe convierte el texto de una columna decimal, que el driver entrega en bytes.

@@ -43,6 +43,22 @@ var migraciones = []string{
     index ix_respaldo_fecha (iniciado_en)
 ) engine = InnoDB default charset = utf8mb4`,
 
+	`create table if not exists restauracion (
+    id              binary(16)    not null,
+    respaldo_id     binary(16)    not null,
+    estado          varchar(12)   not null default 'SOLICITADA',
+    motivo          varchar(500)  not null,
+    solicitada_por  binary(16)    not null,
+    solicitada_en   datetime(6)   not null,
+    confirmada_por  binary(16)    null,
+    iniciada_en     datetime(6)   null,
+    finalizada_en   datetime(6)   null,
+    resultado       varchar(1000) null,
+    primary key (id),
+    constraint fk_restauracion_respaldo foreign key (respaldo_id) references respaldo (id),
+    constraint ck_restauracion_estado check (estado in ('SOLICITADA', 'EN_CURSO', 'COMPLETADA', 'FALLIDA', 'CANCELADA'))
+) engine = InnoDB default charset = utf8mb4`,
+
 	`create table if not exists medicion_rendimiento (
     id             binary(16)   not null,
     servicio       varchar(40)  not null,

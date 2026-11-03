@@ -24,7 +24,7 @@ import (
 // propósito: una base grande tarda, pero un proceso colgado no puede quedarse para siempre.
 const duracionRespaldo = 30 * time.Minute
 
-// Servicio ejecuta las copias de seguridad (HU-081).
+// Servicio ejecuta las copias de seguridad y las restauraciones (HU-081, HU-082).
 //
 // Las copias se hacen con `mysqldump` contra las bases configuradas y se guardan
 // comprimidas en el directorio de respaldos, que debe ser un volumen para sobrevivir al
@@ -237,6 +237,124 @@ func (s *Servicio) aplicarRetencion(ctx context.Context) {
 		}
 		slog.Info("respaldo fuera de retención", "respaldo", respaldo.ID)
 	}
+}
+
+// SolicitarRestauracion registra el pedido (HU-082). No restaura nada: restaurar
+// sobrescribe datos, así que exige una segunda persona que lo confirme.
+func (s *Servicio) SolicitarRestauracion(ctx context.Context, respaldoID, motivo, actor string) (Restauracion, error) {
+	if strings.TrimSpace(motivo) == "" {
+		return Restauracion{}, comun.ReglaInvalida("Una restauración exige un motivo.")
+	}
+	if aBinario(respaldoID) == nil {
+		return Restauracion{}, comun.ReglaInvalida("El identificador del respaldo no es válido.")
+	}
+	respaldo, err := s.repositorio.ObtenerRespaldo(ctx, respaldoID)
+	if err != nil {
+		return Restauracion{}, err
+	}
+	if respaldo.Estado != RespaldoCompletado {
+		return Restauracion{}, comun.ReglaInvalida("Solo se puede restaurar un respaldo completado.",
+			"El respaldo está "+respaldo.Estado)
+	}
+	return s.repositorio.CrearRestauracion(ctx, Restauracion{
+		RespaldoID:    respaldoID,
+		Motivo:        recortar(motivo, 500),
+		SolicitadaPor: actor,
+	})
+}
+
+// ListarRestauraciones devuelve las solicitudes recientes.
+func (s *Servicio) ListarRestauraciones(ctx context.Context, limite int) ([]Restauracion, error) {
+	if limite <= 0 {
+		limite = 25
+	}
+	return s.repositorio.ListarRestauraciones(ctx, limite)
+}
+
+// Restaurar carga el respaldo sobre las bases, después de que otra persona lo confirmó.
+//
+// Es la operación más destructiva del sistema: reemplaza el contenido de las tablas
+// incluidas. Por eso exige que quien confirma no sea quien pidió, y deja registrado a
+// ambos en la tabla restauracion.
+func (s *Servicio) Restaurar(ctx context.Context, id, actor string) (Restauracion, error) {
+	restauracion, err := s.repositorio.ObtenerRestauracion(ctx, id)
+	if err != nil {
+		return Restauracion{}, err
+	}
+	if err := validarConfirmacion(restauracion, actor); err != nil {
+		return Restauracion{}, err
+	}
+	respaldo, err := s.repositorio.ObtenerRespaldo(ctx, restauracion.RespaldoID)
+	if err != nil {
+		return Restauracion{}, err
+	}
+	if respaldo.Estado != RespaldoCompletado || respaldo.Ubicacion == nil {
+		return Restauracion{}, comun.ReglaInvalida("El respaldo ya no está disponible.",
+			"Estado actual: "+respaldo.Estado)
+	}
+	if err := s.repositorio.IniciarRestauracion(ctx, id, actor); err != nil {
+		return Restauracion{}, err
+	}
+
+	fallo := s.cargar(ctx, filepath.Join(s.respaldos.Directorio, filepath.Base(*respaldo.Ubicacion)))
+	estado := RestauracionCompletada
+	resultado := "El respaldo se cargó sobre las bases incluidas."
+	if fallo != nil {
+		estado = RestauracionFallida
+		resultado = recortar(fallo.Error(), 1000)
+		slog.Error("la restauración falló", "restauracion", id, "error", fallo)
+	}
+	if err := s.repositorio.FinalizarRestauracion(ctx, id, estado, resultado); err != nil {
+		return Restauracion{}, err
+	}
+	return s.repositorio.ObtenerRestauracion(ctx, id)
+}
+
+// validarConfirmacion aplica las dos reglas de una restauración: que siga solicitada y que
+// la confirme otra persona distinta de quien la pidió.
+func validarConfirmacion(restauracion Restauracion, actor string) error {
+	if restauracion.Estado != RestauracionSolicitada {
+		return comun.ReglaInvalida("Esta restauración ya no se puede ejecutar.",
+			"Estado actual: "+restauracion.Estado)
+	}
+	if actor == restauracion.SolicitadaPor {
+		return comun.Prohibido("Quien solicita una restauración no puede confirmarla: hace falta otra persona.")
+	}
+	return nil
+}
+
+// cargar pasa el volcado por el cliente `mysql`, que recrea las bases y sus tablas.
+func (s *Servicio) cargar(ctx context.Context, ruta string) error {
+	archivo, err := os.Open(ruta)
+	if err != nil {
+		return fmt.Errorf("no se pudo abrir el respaldo: %w", err)
+	}
+	defer func() { _ = archivo.Close() }()
+
+	descompresor, err := gzip.NewReader(archivo)
+	if err != nil {
+		return fmt.Errorf("el respaldo no está comprimido como se esperaba: %w", err)
+	}
+	defer func() { _ = descompresor.Close() }()
+
+	limite, cancelar := context.WithTimeout(ctx, duracionRespaldo)
+	defer cancelar()
+
+	comando := exec.CommandContext(limite, s.respaldos.Mysql,
+		"--host="+s.base.Host,
+		fmt.Sprintf("--port=%d", s.base.Puerto),
+		"--user="+s.base.Usuario,
+		"--protocol=tcp",
+		"--default-character-set=utf8mb4",
+	)
+	comando.Env = append(os.Environ(), "MYSQL_PWD="+s.base.Clave)
+	comando.Stdin = descompresor
+	var errores strings.Builder
+	comando.Stderr = &errores
+	if err := comando.Run(); err != nil {
+		return fmt.Errorf("mysql falló al cargar el respaldo: %w: %s", err, strings.TrimSpace(errores.String()))
+	}
+	return nil
 }
 
 // Programar ejecuta la copia programada mientras el contexto siga vivo (HU-081).

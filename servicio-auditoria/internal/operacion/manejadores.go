@@ -15,7 +15,7 @@ const (
 	PermisoRendimiento = "rendimiento:consultar"
 )
 
-// Manejadores expone respaldos y rendimiento por HTTP.
+// Manejadores expone respaldos, restauración y rendimiento por HTTP.
 type Manejadores struct {
 	servicio *Servicio
 }
@@ -34,6 +34,9 @@ func (m *Manejadores) Registrar(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/auditoria/respaldos/programacion", comun.RequierePermiso(PermisoRespaldos, m.programacion))
 	mux.HandleFunc("PUT /api/auditoria/respaldos/programacion", comun.RequierePermiso(PermisoRespaldos, m.guardarProgramacion))
 	mux.HandleFunc("GET /api/auditoria/respaldos/{id}", comun.RequierePermiso(PermisoRespaldos, m.detalleRespaldo))
+	mux.HandleFunc("GET /api/auditoria/restauraciones", comun.RequierePermiso(PermisoRespaldos, m.listarRestauraciones))
+	mux.HandleFunc("POST /api/auditoria/restauraciones", comun.RequierePermiso(PermisoRespaldos, m.solicitarRestauracion))
+	mux.HandleFunc("POST /api/auditoria/restauraciones/{id}/ejecutar", comun.RequierePermiso(PermisoRespaldos, m.ejecutarRestauracion))
 
 	rendimiento := comun.RequierePermiso(PermisoRendimiento, m.resumenRendimiento)
 	mux.HandleFunc("GET /api/auditoria/rendimiento", rendimiento)
@@ -99,6 +102,49 @@ func (m *Manejadores) detalleRespaldo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	comun.EscribirJSON(w, http.StatusOK, respaldo)
+}
+
+// listarRestauraciones devuelve las solicitudes (HU-082).
+func (m *Manejadores) listarRestauraciones(w http.ResponseWriter, r *http.Request) {
+	restauraciones, err := m.servicio.ListarRestauraciones(r.Context(), leerLimite(r))
+	if err != nil {
+		comun.EscribirError(w, err)
+		return
+	}
+	comun.EscribirJSON(w, http.StatusOK, map[string]any{
+		"contenido": restauraciones,
+		"total":     len(restauraciones),
+	})
+}
+
+// solicitarRestauracion registra el pedido de volver a cargar un respaldo (HU-082).
+func (m *Manejadores) solicitarRestauracion(w http.ResponseWriter, r *http.Request) {
+	var cuerpo struct {
+		RespaldoID string `json:"respaldoId"`
+		Motivo     string `json:"motivo"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8*1024)).Decode(&cuerpo); err != nil {
+		comun.EscribirError(w, comun.ReglaInvalida("El cuerpo de la solicitud no es JSON válido.", err.Error()))
+		return
+	}
+	actor, _ := comun.ActorDe(r)
+	restauracion, err := m.servicio.SolicitarRestauracion(r.Context(), cuerpo.RespaldoID, cuerpo.Motivo, actor.ID)
+	if err != nil {
+		comun.EscribirError(w, err)
+		return
+	}
+	comun.EscribirJSON(w, http.StatusCreated, restauracion)
+}
+
+// ejecutarRestauracion confirma y ejecuta una solicitud ya registrada (HU-082).
+func (m *Manejadores) ejecutarRestauracion(w http.ResponseWriter, r *http.Request) {
+	actor, _ := comun.ActorDe(r)
+	restauracion, err := m.servicio.Restaurar(r.Context(), r.PathValue("id"), actor.ID)
+	if err != nil {
+		comun.EscribirError(w, err)
+		return
+	}
+	comun.EscribirJSON(w, http.StatusOK, restauracion)
 }
 
 // resumenRendimiento devuelve los percentiles de lo observado en este proceso (HU-084).
