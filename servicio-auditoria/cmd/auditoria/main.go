@@ -57,11 +57,16 @@ func ejecutar() error {
 		return err
 	}
 
-	// Medición de tiempos de respuesta (HU-084).
-	servicioOperacion := operacion.NuevoServicio(operacion.NuevoRepositorio(base))
+	// Copias de seguridad, restauración y métricas (HU-081, HU-082, HU-084, HU-085).
+	servicioOperacion := operacion.NuevoServicio(
+		operacion.NuevoRepositorio(base), cfg.Respaldos, cfg.DB)
 	if err := servicioOperacion.AplicarMigracion(ctx); err != nil {
 		return err
 	}
+	if err := os.MkdirAll(cfg.Respaldos.Directorio, 0o750); err != nil {
+		return fmt.Errorf("no se pudo preparar el directorio de respaldos: %w", err)
+	}
+	go servicioOperacion.Programar(ctx)
 
 	// El consumidor corre en su propia goroutine: la cadena se escribe en el orden en que
 	// RabbitMQ entrega los eventos, sin bloquear las consultas de la bitácora.

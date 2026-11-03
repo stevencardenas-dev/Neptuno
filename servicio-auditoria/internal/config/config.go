@@ -16,10 +16,20 @@ import (
 
 // Config es la configuración completa del servicio.
 type Config struct {
-	Puerto  int
-	JWT     JWT
-	DB      DB
-	Eventos Eventos
+	Puerto    int
+	JWT       JWT
+	DB        DB
+	Eventos   Eventos
+	Respaldos Respaldos
+}
+
+// Respaldos describe dónde y con qué herramientas se ejecutan las copias de seguridad
+// (HU-081, HU-082). El directorio debe ser un volumen para que sobreviva al contenedor.
+type Respaldos struct {
+	Directorio string
+	Mysqldump  string
+	Mysql      string
+	Bases      []string
 }
 
 // JWT es el secreto compartido con servicio-usuarios, que es quien emite los tokens.
@@ -87,6 +97,16 @@ func Cargar() (Config, error) {
 			Cola:       texto("EVENTOS_COLA_AUDITORIA", "audit.infrastructure"),
 			RoutingKey: texto("EVENTOS_ROUTING_KEY", "audit.evento"),
 		},
+		Respaldos: Respaldos{
+			Directorio: texto("RESPALDO_DIRECTORIO", "respaldos"),
+			Mysqldump:  texto("RESPALDO_MYSQLDUMP", "mysqldump"),
+			Mysql:      texto("RESPALDO_MYSQL", "mysql"),
+			// Las bases que cubre la copia. Cada microservicio tiene su propio servidor MySQL,
+			// así que por defecto se copia la base de este servicio; en un servidor compartido
+			// se listan todas las que el usuario pueda leer, separadas por comas. Si una no se
+			// puede leer, el respaldo falla y el motivo queda registrado en la tabla respaldo.
+			Bases: lista("RESPALDO_BASES", []string{"audit_infra_db"}),
+		},
 	}, nil
 }
 
@@ -110,6 +130,24 @@ func texto(nombre, porDefecto string) string {
 		return valor
 	}
 	return porDefecto
+}
+
+// lista lee una variable de entorno separada por comas.
+func lista(nombre string, porDefecto []string) []string {
+	crudo := strings.TrimSpace(os.Getenv(nombre))
+	if crudo == "" {
+		return porDefecto
+	}
+	valores := []string{}
+	for _, valor := range strings.Split(crudo, ",") {
+		if limpio := strings.TrimSpace(valor); limpio != "" {
+			valores = append(valores, limpio)
+		}
+	}
+	if len(valores) == 0 {
+		return porDefecto
+	}
+	return valores
 }
 
 func entero(nombre string, porDefecto int) int {

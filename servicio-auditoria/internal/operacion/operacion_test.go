@@ -61,6 +61,43 @@ func TestResumenMarcaElLimite(t *testing.T) {
 	}
 }
 
+// TestTocaCopiar cubre la programación diaria: solo dispara después de la hora y una vez
+// por intervalo, aunque el servicio se reinicie.
+func TestTocaCopiar(t *testing.T) {
+	programacion := Programacion{Frecuencia: FrecuenciaDiaria, Hora: "02:00", Activa: true}
+	ahora := time.Date(2026, 3, 10, 2, 30, 0, 0, time.UTC)
+
+	if !tocaCopiar(programacion, nil, ahora) {
+		t.Fatal("sin respaldos previos, a las 02:30 ya toca copiar")
+	}
+
+	antes := ahora.Add(-25 * time.Hour)
+	if !tocaCopiar(programacion, &antes, ahora) {
+		t.Fatal("pasadas 24 horas, toca copiar")
+	}
+
+	ayer := ahora.Add(-1 * time.Hour)
+	if tocaCopiar(programacion, &ayer, ahora) {
+		t.Fatal("la copia de hace una hora ya cumplió el intervalo")
+	}
+
+	manana := time.Date(2026, 3, 10, 1, 0, 0, 0, time.UTC)
+	if tocaCopiar(programacion, nil, manana) {
+		t.Fatal("antes de la hora programada no se copia")
+	}
+}
+
+// TestRecortarNoParteCaracteres evita dejar un byte suelto de una tilde en la columna.
+func TestRecortarNoParteCaracteres(t *testing.T) {
+	recortado := recortar("restauración", 11)
+	if recortado != "restauraci" {
+		t.Fatalf("recorte inesperado: %q", recortado)
+	}
+	if recortado := recortar("corto", 20); recortado != "corto" {
+		t.Fatalf("no debía recortar: %q", recortado)
+	}
+}
+
 func rango(desde, hasta int) []int {
 	valores := make([]int, 0, hasta-desde+1)
 	for i := desde; i <= hasta; i++ {

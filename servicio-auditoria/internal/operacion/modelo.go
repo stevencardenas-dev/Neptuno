@@ -1,5 +1,6 @@
 // Package operacion reúne los requerimientos no funcionales de ms-audit-infra:
-// medición de los tiempos de respuesta contra el límite de 2 s (HU-084).
+// copias de seguridad programadas (HU-081), medición de
+// tiempos de respuesta (HU-084) y registro de pruebas de carga (HU-085).
 package operacion
 
 import (
@@ -10,6 +11,51 @@ import (
 
 // LimiteMs es el tiempo de respuesta máximo aceptado por el backlog: 2 segundos.
 const LimiteMs = 2000
+
+// Frecuencias válidas de una programación de respaldo.
+const (
+	FrecuenciaDiaria      = "DIARIA"
+	FrecuenciaCada12Horas = "CADA_12_HORAS"
+	FrecuenciaSemanal     = "SEMANAL"
+)
+
+// Estados de un respaldo.
+const (
+	RespaldoEnCurso    = "EN_CURSO"
+	RespaldoCompletado = "COMPLETADO"
+	RespaldoFallido    = "FALLIDO"
+	RespaldoExpirado   = "EXPIRADO"
+)
+
+// Programacion es la copia de seguridad periódica configurada (HU-081). Solo hay una
+// activa a la vez: el servicio la crea con valores por defecto y la actualiza.
+type Programacion struct {
+	ID                string    `json:"id"`
+	Frecuencia        string    `json:"frecuencia"`
+	Hora              string    `json:"hora"` // HH:MM en UTC
+	RetencionDias     int       `json:"retencionDias"`
+	IncluyeDocumentos bool      `json:"incluyeDocumentos"`
+	IncluyeBitacora   bool      `json:"incluyeBitacora"`
+	Activa            bool      `json:"activa"`
+	ActualizadoPor    string    `json:"actualizadoPor,omitempty"`
+	ActualizadoEn     time.Time `json:"actualizadoEn"`
+}
+
+// Respaldo es una copia ejecutada, manual o programada (HU-081).
+type Respaldo struct {
+	ID             string     `json:"id"`
+	ProgramacionID *string    `json:"programacionId"`
+	Estado         string     `json:"estado"`
+	BasesIncluidas []string   `json:"basesIncluidas"`
+	Ubicacion      *string    `json:"ubicacion"`
+	TamanoBytes    *int64     `json:"tamanoBytes"`
+	ChecksumSHA256 *string    `json:"checksumSha256"`
+	IniciadoPor    *string    `json:"iniciadoPor"`
+	IniciadoEn     time.Time  `json:"iniciadoEn"`
+	FinalizadoEn   *time.Time `json:"finalizadoEn"`
+	ExpiraEn       *time.Time `json:"expiraEn"`
+	MensajeError   *string    `json:"mensajeError"`
+}
 
 // Medicion es una ventana de tiempos de respuesta frente al límite de 2 s (HU-084).
 type Medicion struct {

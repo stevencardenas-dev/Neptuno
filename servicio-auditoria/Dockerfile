@@ -9,8 +9,14 @@ COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /salida/auditoria ./cmd/auditoria
 
 FROM alpine:3.21
-# El servicio no escribe en disco ni necesita root: solo habla con MySQL y RabbitMQ.
-RUN adduser -D -u 10001 neptuno
+# Las copias de seguridad se hacen con las herramientas de MySQL (HU-081, HU-082), que
+# no vienen en la imagen base: mysqldump para volcar y mysql para restaurar.
+RUN apk add --no-cache mariadb-client
+# El servicio no necesita root: solo habla con MySQL y RabbitMQ, y escribe los respaldos
+# en un volumen que se le entrega ya creado con su dueño.
+RUN adduser -D -u 10001 neptuno \
+ && mkdir -p /respaldos \
+ && chown neptuno:neptuno /respaldos
 COPY --from=compilacion /salida/auditoria /usr/local/bin/auditoria
 USER neptuno
 EXPOSE 8083

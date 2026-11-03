@@ -9,6 +9,40 @@ import (
 // idempotentes, igual que la de la bitácora. Los índices van dentro del create table
 // porque MySQL no admite `create index if not exists`.
 var migraciones = []string{
+	`create table if not exists programacion_respaldo (
+    id                  binary(16)  not null,
+    frecuencia          varchar(16) not null,
+    hora                time        not null,
+    retencion_dias      int         not null,
+    incluye_documentos  boolean     not null default true,
+    incluye_bitacora    boolean     not null default true,
+    activa              boolean     not null default true,
+    actualizado_por     binary(16)  not null,
+    actualizado_en      datetime(6) not null,
+    primary key (id),
+    constraint ck_programacion_frecuencia check (frecuencia in ('DIARIA', 'CADA_12_HORAS', 'SEMANAL')),
+    constraint ck_programacion_retencion check (retencion_dias > 0)
+) engine = InnoDB default charset = utf8mb4`,
+
+	`create table if not exists respaldo (
+    id                binary(16)    not null,
+    programacion_id   binary(16)    null,
+    estado            varchar(12)   not null default 'EN_CURSO',
+    bases_incluidas   json          not null,
+    ubicacion         varchar(300)  null,
+    tamano_bytes      bigint        null,
+    checksum_sha256   char(64)      null,
+    iniciado_por      binary(16)    null,
+    iniciado_en       datetime(6)   not null,
+    finalizado_en     datetime(6)   null,
+    expira_en         datetime(6)   null,
+    mensaje_error     varchar(1000) null,
+    primary key (id),
+    constraint fk_respaldo_programacion foreign key (programacion_id) references programacion_respaldo (id),
+    constraint ck_respaldo_estado check (estado in ('EN_CURSO', 'COMPLETADO', 'FALLIDO', 'EXPIRADO')),
+    index ix_respaldo_fecha (iniciado_en)
+) engine = InnoDB default charset = utf8mb4`,
+
 	`create table if not exists medicion_rendimiento (
     id             binary(16)   not null,
     servicio       varchar(40)  not null,

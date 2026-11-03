@@ -203,6 +203,14 @@ services:
       RABBIT_HOST: rabbitmq
       RABBIT_USUARIO: ${RABBIT_USUARIO:-neptuno}
       RABBIT_CLAVE: ${RABBIT_CLAVE:?Define RABBIT_CLAVE en .env}
+      # Copias de seguridad (HU-081, HU-082): este servidor solo ve su propia base; para
+      # respaldar las demás, un servidor compartido o una copia por volumen.
+      RESPALDO_DIRECTORIO: /respaldos
+      RESPALDO_BASES: ${RESPALDO_BASES:-audit_infra_db}
+    volumes:
+      # Sin volumen, recrear el contenedor borra los respaldos y la retención se queda sin
+      # nada que restaurar.
+      - respaldos-data:/respaldos
     depends_on:
       db-auditoria:
         condition: service_healthy
@@ -290,3 +298,4 @@ volumes:
   db-workflow-data:
   minio-data:
   rabbitmq-data:
+  respaldos-data:
