@@ -53,24 +53,33 @@ export function crearRepositorioAnexos(pool) {
   return {
     /** HU-025: el anexo y su evento entran juntos. */
     async insertar(datos, actor) {
-      const id = randomUUID();
+      return this.insertarLote([datos], actor).then((anexos) => anexos[0]);
+    },
+
+    /** HU-027: varios anexos entran en una sola transacción. */
+    async insertarLote(anexos, actor) {
+      const ids = anexos.map(() => randomUUID());
       return enTransaccion(async (cx) => {
-        await cx.execute(
-          `insert into anexo (id, radicado_id, nombre_original, extension, tipo_mime, tamano_bytes,
-             objeto_clave, hash_sha256, procedencia, cargado_por, cargado_en)
-           values (?, ?, ?, ?, ?, ?, ?, ?, 'CARGA', ?, ?)`,
-          [
-            aBuffer(id), aBuffer(datos.radicadoId), datos.nombreOriginal, datos.extension, datos.tipoMime,
-            datos.tamanoBytes, datos.objetoClave, datos.hashSha256, aBuffer(actor.id), new Date(),
-          ],
-        );
-        await registrarEvento(cx, {
-          tipo: 'anexo.cargado',
-          anexoId: id,
-          actor,
-          detalle: `Se cargó el anexo ${datos.nombreOriginal} (${datos.tamanoBytes} bytes).`,
-        });
-        return aAnexo(await leer(cx, id));
+        for (const [indice, datos] of anexos.entries()) {
+          await cx.execute(
+            `insert into anexo (id, radicado_id, nombre_original, extension, tipo_mime, tamano_bytes,
+               objeto_clave, hash_sha256, procedencia, cargado_por, cargado_en)
+             values (?, ?, ?, ?, ?, ?, ?, ?, 'CARGA', ?, ?)`,
+            [
+              aBuffer(ids[indice]), aBuffer(datos.radicadoId), datos.nombreOriginal, datos.extension, datos.tipoMime,
+              datos.tamanoBytes, datos.objetoClave, datos.hashSha256, aBuffer(actor.id), new Date(),
+            ],
+          );
+          await registrarEvento(cx, {
+            tipo: 'anexo.cargado',
+            anexoId: ids[indice],
+            actor,
+            detalle: `Se cargó el anexo ${datos.nombreOriginal} (${datos.tamanoBytes} bytes).`,
+          });
+        }
+        const leidos = [];
+        for (const id of ids) leidos.push(aAnexo(await leer(cx, id)));
+        return leidos;
       });
     },
 

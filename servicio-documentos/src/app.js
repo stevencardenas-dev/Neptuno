@@ -10,7 +10,10 @@ import { crearRutasInternas } from './interno/rutas.js';
 export function crearApp({ config, repo, repoAnexos, almacen, catalogos, workflow, comprobarSalud = async () => {}, ahora }) {
   const app = express();
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '100kb' }));
+  // La carga múltiple de anexos (HU-027) trae varios archivos en base64 y necesita un
+  // límite propio; el resto del API se queda con el límite pequeño.
+  const jsonPequenio = express.json({ limit: '100kb' });
+  app.use((req, res, next) => (req.path.endsWith('/anexos/lote') ? next() : jsonPequenio(req, res, next)));
 
   app.get('/healthz', async (_req, res) => {
     try {

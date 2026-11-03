@@ -2,6 +2,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import { ErrorApi, conflicto, noEncontrado, reglaInvalida } from '../errores.js';
 import { validarArchivo } from './modelo.js';
 
+/** HU-027: máximo de archivos que se pueden enviar en una sola carga. */
+export const MAX_ARCHIVOS_POR_LOTE = 8;
+
 /**
  * Anexos de un radicado (HU-025…HU-029). El archivo se guarda en MinIO y la base
  * conserva los metadatos: nombre original, extensión, MIME, tamaño y SHA-256.
@@ -14,38 +17,66 @@ export function crearServicioAnexos({ repo, almacen }) {
     return estado;
   }
 
+  /** Valida el archivo y prepara su registro antes de tocar el almacén. */
+  function preparar(destino, archivo) {
+    const datos = validarArchivo({
+      nombre: archivo.nombre,
+      tipoMime: archivo.tipoMime,
+      tamano: archivo.contenido?.length ?? 0,
+    });
+    const anexo = {
+      ...destino,
+      ...datos,
+      procedencia: 'CARGA',
+      tamanoBytes: archivo.contenido.length,
+      hashSha256: createHash('sha256').update(archivo.contenido).digest('hex'),
+      objetoClave: `radicados/${destino.radicadoId}/${randomUUID()}.${datos.extension}`,
+    };
+    return { anexo, contenido: archivo.contenido };
+  }
+
+  /** Sube todos los objetos y luego inserta los registros; si algo falla, limpia el almacén. */
+  async function guardar(actor, preparados) {
+    const subidos = [];
+    try {
+      for (const { anexo, contenido } of preparados) {
+        await almacen.guardar(anexo.objetoClave, contenido, anexo.tipoMime);
+        subidos.push(anexo.objetoClave);
+      }
+    } catch (error) {
+      await Promise.all(subidos.map((clave) => almacen.eliminar?.(clave).catch(() => {})));
+      console.error('No se pudieron guardar los anexos en MinIO:', error.message);
+      throw ErrorAlmacen();
+    }
+    try {
+      return await repo.insertarLote(preparados.map(({ anexo }) => anexo), actor);
+    } catch (error) {
+      // Ni objetos huérfanos ni registros a medias: si la base rechaza, se borra lo subido.
+      await Promise.all(subidos.map((clave) => almacen.eliminar?.(clave).catch(() => {})));
+      throw error;
+    }
+  }
+
   return {
-    /** HU-025, HU-026: cargar uno o varios archivos al radicado. */
+    /** HU-025, HU-026: cargar un archivo al radicado. */
     async cargar(actor, radicadoId, archivo) {
       await radicadoDe(radicadoId);
-      const datos = validarArchivo({
-        nombre: archivo.nombre,
-        tipoMime: archivo.tipoMime,
-        tamano: archivo.contenido?.length ?? 0,
-      });
-      const hashSha256 = createHash('sha256').update(archivo.contenido).digest('hex');
-      const objetoClave = `radicados/${radicadoId}/${randomUUID()}.${datos.extension}`;
+      const [anexo] = await guardar(actor, [preparar({ radicadoId }, archivo)]);
+      return anexo;
+    },
 
-      try {
-        await almacen.guardar(objetoClave, archivo.contenido, datos.tipoMime);
-      } catch (error) {
-        console.error('No se pudo guardar el anexo en MinIO:', error.message);
-        throw ErrorAlmacen();
+    /** HU-027: varios archivos del radicado en una sola petición. */
+    async cargarLote(actor, radicadoId, archivos) {
+      await radicadoDe(radicadoId);
+      if (!Array.isArray(archivos) || archivos.length === 0) {
+        throw reglaInvalida('Envía al menos un archivo.');
       }
-
-      try {
-        return await repo.insertar({
-          radicadoId,
-          ...datos,
-          tamanoBytes: archivo.contenido.length,
-          objetoClave,
-          hashSha256,
-        }, actor);
-      } catch (error) {
-        // Si la base rechaza el registro, el objeto no debe quedar huérfano.
-        await almacen.eliminar?.(objetoClave).catch(() => {});
-        throw error;
+      if (archivos.length > MAX_ARCHIVOS_POR_LOTE) {
+        throw reglaInvalida(`Se pueden cargar como máximo ${MAX_ARCHIVOS_POR_LOTE} archivos a la vez.`);
       }
+      // Se validan todos antes de subir el primero: un lote inválido no deja nada a medias.
+      const preparados = archivos.map((archivo) => preparar({ radicadoId }, archivo));
+      return guardar(actor, preparados);
     },
 
     /** HU-027 */

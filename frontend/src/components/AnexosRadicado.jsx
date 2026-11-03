@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Modal } from './ui.jsx'
-import { cargarAnexo, descargarAnexo, eliminarAnexo, listarAnexos } from '../api/documentos.js'
+import { cargarAnexo, cargarAnexosEnLote, descargarAnexo, eliminarAnexo, listarAnexos } from '../api/documentos.js'
 import { usePeticion } from '../api/usePeticion.js'
 import { formatearFecha } from '../util/formato.js'
 import { guardarArchivo, tamanoLegible } from '../util/archivos.js'
@@ -25,12 +25,15 @@ export function AnexosRadicado({ radicadoId, puedeCargar, puedeEliminar }) {
   const anexos = lista.datos ?? []
 
   async function subir(evento) {
-    const archivo = evento.target.files?.[0]
-    if (!archivo) return
+    const archivos = [...(evento.target.files ?? [])]
+    if (!archivos.length) return
     setSubiendo(true)
     setError(null)
     try {
-      await cargarAnexo(radicadoId, archivo)
+      // HU-027: varios archivos viajan en una sola petición; uno solo va por la ruta
+      // binaria de siempre, que no tiene que codificar el contenido en base64.
+      if (archivos.length === 1) await cargarAnexo(radicadoId, archivos[0])
+      else await cargarAnexosEnLote(radicadoId, archivos)
       lista.recargar()
     } catch (fallo) {
       setError(fallo)
@@ -77,6 +80,7 @@ export function AnexosRadicado({ radicadoId, puedeCargar, puedeEliminar }) {
             <input
               type="file"
               accept={ACEPTADOS}
+              multiple
               hidden
               disabled={subiendo}
               onChange={subir}
@@ -128,7 +132,8 @@ export function AnexosRadicado({ radicadoId, puedeCargar, puedeEliminar }) {
 
       {puedeCargar && !anexos.length ? (
         <span className="hint">
-          <IconInfo size={13} /> PDF, PNG, JPG, DOCX o XLSX. Máximo 10 MB por archivo.
+          <IconInfo size={13} /> PDF, PNG, JPG, DOCX o XLSX. Puedes elegir varios archivos a la
+          vez; máximo 10 MB por archivo.
         </span>
       ) : null}
 

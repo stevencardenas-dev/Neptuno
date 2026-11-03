@@ -60,3 +60,30 @@ export function eliminarAnexo(anexoId, motivo) {
 export function descargarAnexo(anexoId) {
   return descargar(`/anexos/${anexoId}/descarga`, { base: BASE_DOCUMENTOS })
 }
+
+/**
+ * HU-027: varios archivos en una sola petición. El servicio los recibe en JSON y en
+ * base64, así que aquí se leen todos antes de enviarlos.
+ */
+export async function cargarAnexosEnLote(radicadoId, archivos) {
+  const contenidos = await Promise.all(archivos.map(async (archivo) => ({
+    nombre: archivo.name,
+    tipoMime: archivo.type || 'application/octet-stream',
+    contenido: await base64(archivo),
+  })))
+  return peticion(`/radicados/${radicadoId}/anexos/lote`, {
+    metodo: 'POST',
+    cuerpo: { archivos: contenidos },
+    base: BASE_DOCUMENTOS,
+  })
+}
+
+/** Convierte un archivo en base64 sin arrastrar el prefijo `data:` de la URL. */
+function base64(archivo) {
+  return new Promise((resolver, rechazar) => {
+    const lector = new FileReader()
+    lector.onerror = () => rechazar(new Error(`No se pudo leer ${archivo.name}.`))
+    lector.onload = () => resolver(String(lector.result).split(',')[1] ?? '')
+    lector.readAsDataURL(archivo)
+  })
+}

@@ -26,6 +26,14 @@ function enviarArchivo(flujo, anexo, res) {
  * cabecera `X-Nombre-Archivo`. Así se evita una dependencia de parseo y el límite de
  * tamaño lo aplica `express.raw`.
  */
+/** Decodifica el contenido base64 de una carga múltiple (HU-027). */
+function contenidoBase64(texto) {
+  if (typeof texto !== 'string' || !texto || !/^[A-Za-z0-9+/]+={0,2}$/.test(texto) || texto.length % 4 !== 0) {
+    throw reglaInvalida('Cada archivo debe traer su contenido en base64.');
+  }
+  return Buffer.from(texto, 'base64');
+}
+
 export function crearRutasAnexos(servicio) {
   const r = Router();
 
@@ -49,6 +57,28 @@ export function crearRutasAnexos(servicio) {
         contenido: req.body,
       });
       res.status(201).location(`/api/documentos/anexos/${anexo.id}`).json(anexo);
+    },
+  );
+
+  /** HU-027: varios archivos en una sola petición. Viajan en JSON y en base64. */
+  r.post(
+    '/radicados/:id/anexos/lote',
+    requierePermiso('anexos:cargar'),
+    express.json({ limit: '60mb' }),
+    async (req, res) => {
+      if (!idValido(req.params.id)) throw noEncontrado('El radicado no existe.');
+      const archivos = req.body?.archivos;
+      if (!Array.isArray(archivos)) throw reglaInvalida('El cuerpo debe traer la lista de archivos.');
+      const anexos = await servicio.cargarLote(
+        req.actor,
+        req.params.id,
+        archivos.map((archivo) => ({
+          nombre: archivo?.nombre,
+          tipoMime: archivo?.tipoMime,
+          contenido: contenidoBase64(archivo?.contenido),
+        })),
+      );
+      res.status(201).json(anexos);
     },
   );
 
