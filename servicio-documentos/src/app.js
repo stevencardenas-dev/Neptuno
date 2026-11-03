@@ -6,8 +6,10 @@ import { crearRutasRadicados } from './radicados/rutas.js';
 import { crearServicioAnexos } from './anexos/servicio.js';
 import { crearRutasAnexos } from './anexos/rutas.js';
 import { crearRutasInternas } from './interno/rutas.js';
+import { crearServicioCopias } from './copias/servicio.js';
+import { crearRutasCopias } from './copias/rutas.js';
 
-export function crearApp({ config, repo, repoAnexos, almacen, catalogos, workflow, comprobarSalud = async () => {}, ahora }) {
+export function crearApp({ config, repo, repoAnexos, repoCopias, almacen, catalogos, workflow, comprobarSalud = async () => {}, ahora }) {
   const app = express();
   app.disable('x-powered-by');
   // La carga múltiple de anexos (HU-027) trae varios archivos en base64 y necesita un
@@ -36,6 +38,9 @@ export function crearApp({ config, repo, repoAnexos, almacen, catalogos, workflo
   api.use('/radicados', crearRutasRadicados(servicio));
   if (repoAnexos && almacen) {
     api.use(crearRutasAnexos(crearServicioAnexos({ repo: repoAnexos, almacen })));
+  }
+  if (repoCopias) {
+    api.use(crearRutasCopias(crearServicioCopias({ repo: repoCopias, catalogos })));
   }
   app.use('/api/documentos', api);
 

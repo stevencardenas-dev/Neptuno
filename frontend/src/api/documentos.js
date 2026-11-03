@@ -87,3 +87,12 @@ function base64(archivo) {
     lector.readAsDataURL(archivo)
   })
 }
+
+/** HU-041: enviar una copia informativa del radicado y ver a quién se envió. */
+export function enviarCopia(radicadoId, datos) {
+  return peticion(`/radicados/${radicadoId}/copias`, { metodo: 'POST', cuerpo: datos, base: BASE_DOCUMENTOS })
+}
+
+export function copiasEnviadas(radicadoId) {
+  return peticion(`/radicados/${radicadoId}/copias`, { base: BASE_DOCUMENTOS })
+}

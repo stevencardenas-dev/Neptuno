@@ -8,6 +8,7 @@ import { migrar } from './migrar.js';
 import { crearClienteWorkflow } from './workflow.js';
 import { crearRepositorioMysql } from './radicados/repositorio-mysql.js';
 import { crearRepositorioAnexos } from './anexos/repositorio-mysql.js';
+import { crearRepositorioCopias } from './copias/repositorio-mysql.js';
 
 const config = cargarConfig();
 
@@ -27,6 +28,7 @@ const app = crearApp({
   config,
   repo,
   repoAnexos: crearRepositorioAnexos(pool),
+  repoCopias: crearRepositorioCopias(pool),
   almacen,
   catalogos: crearClienteCatalogos(config.usuariosUrl),
   workflow: crearClienteWorkflow(config.workflowUrl),
