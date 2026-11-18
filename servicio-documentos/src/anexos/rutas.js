@@ -34,7 +34,7 @@ function contenidoBase64(texto) {
   return Buffer.from(texto, 'base64');
 }
 
-export function crearRutasAnexos(servicio) {
+export function crearRutasAnexos(servicio, expediente = null) {
   const r = Router();
 
   r.post(
@@ -87,7 +87,38 @@ export function crearRutasAnexos(servicio) {
     res.json(await servicio.listar(req.params.id));
   });
 
-  r.get('/anexos/:anexoId/descarga', requierePermiso('radicados:consultar'), async (req, res) => {
+  /** HU-034: anexos de un documento No radicable del expediente. */
+  r.post(
+    '/documentos-expediente/:id/anexos',
+    requierePermiso('expediente:cargar', 'expediente:administrar'),
+    express.raw({ type: () => true, limit: '10mb' }),
+    async (req, res) => {
+      if (!idValido(req.params.id)) throw noEncontrado('El documento del expediente no existe.');
+      await expediente?.exigirDocumentoParaAnexos(req.actor, req.params.id);
+      const nombre = req.get('x-nombre-archivo');
+      if (!nombre) throw reglaInvalida('Falta la cabecera X-Nombre-Archivo con el nombre del archivo.');
+      let decodificado;
+      try {
+        decodificado = decodeURIComponent(nombre);
+      } catch {
+        throw reglaInvalida('El nombre del archivo no está codificado correctamente.');
+      }
+      const anexo = await servicio.cargarEnDocumento(req.actor, req.params.id, {
+        nombre: decodificado,
+        tipoMime: req.get('content-type'),
+        contenido: req.body,
+      });
+      res.status(201).location(`/api/documentos/anexos/${anexo.id}`).json(anexo);
+    },
+  );
+
+  r.get('/documentos-expediente/:id/anexos', requierePermiso('expediente:ver', 'expediente:administrar'), async (req, res) => {
+    if (!idValido(req.params.id)) throw noEncontrado('El documento del expediente no existe.');
+    await expediente?.obtenerDocumento(req.actor, req.params.id);
+    res.json(await servicio.listarDeDocumento(req.params.id));
+  });
+
+  r.get('/anexos/:anexoId/descarga', requierePermiso('radicados:consultar', 'expediente:ver', 'expediente:cargar'), async (req, res) => {
     if (!idValido(req.params.anexoId)) throw noEncontrado('El anexo no existe.');
     const { anexo, flujo } = await servicio.descargar(req.params.anexoId);
     enviarArchivo(flujo, anexo, res);

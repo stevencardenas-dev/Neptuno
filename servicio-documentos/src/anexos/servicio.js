@@ -6,8 +6,9 @@ import { validarArchivo } from './modelo.js';
 export const MAX_ARCHIVOS_POR_LOTE = 8;
 
 /**
- * Anexos de un radicado (HU-025…HU-029). El archivo se guarda en MinIO y la base
- * conserva los metadatos: nombre original, extensión, MIME, tamaño y SHA-256.
+ * Anexos de un radicado o de un documento del expediente (HU-025…HU-029, HU-034).
+ * El archivo se guarda en MinIO y la base conserva los metadatos: nombre original,
+ * extensión, MIME, tamaño y SHA-256.
  */
 export function crearServicioAnexos({ repo, almacen }) {
   async function radicadoDe(radicadoId) {
@@ -17,8 +18,14 @@ export function crearServicioAnexos({ repo, almacen }) {
     return estado;
   }
 
+  async function documentoDe(documentoId) {
+    if (!(await repo.documentoExpedienteExiste(documentoId))) {
+      throw noEncontrado('El documento del expediente no existe.');
+    }
+  }
+
   /** Valida el archivo y prepara su registro antes de tocar el almacén. */
-  function preparar(destino, archivo) {
+  function preparar(destino, archivo, procedencia = 'CARGA') {
     const datos = validarArchivo({
       nombre: archivo.nombre,
       tipoMime: archivo.tipoMime,
@@ -27,10 +34,10 @@ export function crearServicioAnexos({ repo, almacen }) {
     const anexo = {
       ...destino,
       ...datos,
-      procedencia: 'CARGA',
+      procedencia,
       tamanoBytes: archivo.contenido.length,
       hashSha256: createHash('sha256').update(archivo.contenido).digest('hex'),
-      objetoClave: `radicados/${destino.radicadoId}/${randomUUID()}.${datos.extension}`,
+      objetoClave: `${destino.radicadoId ? `radicados/${destino.radicadoId}` : `expediente/${destino.documentoExpedienteId}`}/${randomUUID()}.${datos.extension}`,
     };
     return { anexo, contenido: archivo.contenido };
   }
@@ -79,10 +86,32 @@ export function crearServicioAnexos({ repo, almacen }) {
       return guardar(actor, preparados);
     },
 
+    /**
+     * HU-038: los archivos que produce una plantilla (DOCX y PDF) son anexos con
+     * procedencia PLANTILLA, para distinguirlos de los cargados por una persona.
+     */
+    async cargarGenerados(actor, radicadoId, archivos) {
+      await radicadoDe(radicadoId);
+      if (!Array.isArray(archivos) || !archivos.length) throw reglaInvalida('No hay archivos generados que guardar.');
+      return guardar(actor, archivos.map((archivo) => preparar({ radicadoId }, archivo, 'PLANTILLA')));
+    },
+
+    /** HU-034: anexos de un documento No radicable del expediente. */
+    async cargarEnDocumento(actor, documentoExpedienteId, archivo) {
+      await documentoDe(documentoExpedienteId);
+      const [anexo] = await guardar(actor, [preparar({ documentoExpedienteId }, archivo)]);
+      return anexo;
+    },
+
     /** HU-027 */
     async listar(radicadoId) {
       await radicadoDe(radicadoId);
       return repo.listar(radicadoId);
+    },
+
+    async listarDeDocumento(documentoExpedienteId) {
+      await documentoDe(documentoExpedienteId);
+      return repo.listarDeDocumento(documentoExpedienteId);
     },
 
     /** HU-027, HU-028: metadatos y flujo de lectura del objeto. */

@@ -9,13 +9,13 @@ const idValido = (id) => UUID.test(id);
 export function crearRutasCopias(servicio) {
   const r = Router();
 
-  r.post('/radicados/:id/copias', requierePermiso('radicados:consultar'), async (req, res) => {
+  r.post('/radicados/:id/copias', requierePermiso('radicados:consultar', 'expediente:ver'), async (req, res) => {
     if (!idValido(req.params.id)) throw noEncontrado('El radicado no existe.');
     const copia = await servicio.enviar(req.actor, req.params.id, req.body);
     res.status(201).location(`/api/documentos/copias/${copia.id}`).json(copia);
   });
 
-  r.get('/radicados/:id/copias', requierePermiso('radicados:consultar'), async (req, res) => {
+  r.get('/radicados/:id/copias', requierePermiso('radicados:consultar', 'expediente:ver'), async (req, res) => {
     if (!idValido(req.params.id)) throw noEncontrado('El radicado no existe.');
     res.json(await servicio.enviadas(req.params.id));
   });

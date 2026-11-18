@@ -27,5 +27,11 @@ export function crearClienteCatalogos(baseUrl) {
     tipoDocumental: (id, token) => leer(`/tipos-documentales/${id}`, token),
     area: (id, token) => leer(`/areas/${id}`, token),
     entidad: (id, token) => leer(`/entidades/${id}`, token),
+    rol: (id, token) => leer(`/roles/${id}`, token),
+    /** Destinatario de una copia: un usuario inactivo o dado de baja no cuenta. */
+    usuario: async (id, token) => {
+      const usuario = await leer(`/usuarios/${id}`, token);
+      return usuario && !usuario.eliminadoEn && usuario.estado !== 'INACTIVO' ? usuario : null;
+    },
   };
 }

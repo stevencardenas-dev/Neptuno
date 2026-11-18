@@ -5,7 +5,7 @@ import { esquemaCrear, esquemaEditar, esquemaFiltros, validar } from './validaci
 const PERMISO_RECIBIDO = 'radicados:radicar-recibido';
 const PERMISO_CLASE = 'radicados:clase';
 
-export function crearServicioRadicados({ repo, catalogos, workflow = null, ahora = () => new Date() }) {
+export function crearServicioRadicados({ repo, catalogos, workflow = null, expediente = null, ahora = () => new Date() }) {
   // Comprueba contra servicio-usuarios que lo referenciado exista y esté activo.
   async function validarCatalogos(actor, datos, origen) {
     if (datos.tipoDocumentalId) {
@@ -54,6 +54,9 @@ export function crearServicioRadicados({ repo, catalogos, workflow = null, ahora
 
       const areaId = datos.areaId ?? actor.areaId;
       await validarCatalogos(actor, { ...datos, areaId }, datos.origen);
+      // HU-032: archivar en una carpeta del expediente exige poder cargar en ella.
+      if (datos.carpetaId && !expediente) throw reglaInvalida('El expediente no está disponible.');
+      if (datos.carpetaId) await expediente.exigirCarpetaParaRadicar(actor, datos.carpetaId);
 
       // El flujo se comprueba antes de radicar: si no atiende el tipo documental no se crea
       // un radicado a medias.
@@ -119,6 +122,8 @@ export function crearServicioRadicados({ repo, catalogos, workflow = null, ahora
       }
       // El tipo debe seguir admitiendo el origen del radicado, cambie o no el tipo.
       await validarCatalogos(actor, cambios, actual.origen);
+      if (cambios.carpetaId && !expediente) throw reglaInvalida('El expediente no está disponible.');
+      if (cambios.carpetaId) await expediente.exigirCarpetaParaRadicar(actor, cambios.carpetaId);
       return repo.actualizar(
         id,
         version,
