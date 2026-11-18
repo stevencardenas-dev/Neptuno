@@ -5,11 +5,12 @@
 //	go run ./cmd/carga -url http://localhost:8080/api/auditoria/bitacora \
 //	    -token "$TOKEN" -usuarios 20 -duracion 30
 //
-// El resultado sale por la salida estándar, junto al límite de 2 s; si el p95 lo supera, el
-// programa termina con código 2.
+// Con -registrar envía el resultado al servicio de auditoría, que lo guarda en la tabla
+// prueba_carga y lo muestra junto al límite de 2 s.
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -44,6 +45,7 @@ func main() {
 	usuarios := flag.Int("usuarios", 10, "usuarios concurrentes")
 	duracion := flag.Int("duracion", 20, "duración de la prueba en segundos")
 	escenario := flag.String("escenario", "", "nombre del escenario; por defecto, el método y la ruta")
+	registrar := flag.String("registrar", "", "URL del servicio de auditoría para guardar el resultado")
 	flag.Parse()
 
 	if *escenario == "" {
@@ -55,6 +57,12 @@ func main() {
 	salida, _ := json.MarshalIndent(res, "", "  ")
 	fmt.Println(string(salida))
 
+	if *registrar != "" {
+		if err := guardar(*registrar, *token, res); err != nil {
+			fmt.Fprintln(os.Stderr, "no se pudo registrar la prueba:", err)
+			os.Exit(1)
+		}
+	}
 	if !res.Cumple {
 		// Un p95 por encima del límite es un fallo de la prueba, no un error del programa.
 		os.Exit(2)
@@ -121,6 +129,33 @@ func ejecutar(url, metodo, token string, usuarios, duracion int) resultado {
 		LimiteMs:             2000,
 		Cumple:               percentil(latencias, 95) <= 2000,
 	}
+}
+
+// guardar publica el resultado en el servicio de auditoría.
+func guardar(base, token string, res resultado) error {
+	cuerpo, err := json.Marshal(res)
+	if err != nil {
+		return err
+	}
+	peticion, err := http.NewRequest(http.MethodPost,
+		base+"/api/auditoria/rendimiento/pruebas-carga", bytes.NewReader(cuerpo))
+	if err != nil {
+		return err
+	}
+	peticion.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		peticion.Header.Set("Authorization", "Bearer "+token)
+	}
+	respuesta, err := http.DefaultClient.Do(peticion)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = respuesta.Body.Close() }()
+	if respuesta.StatusCode >= 300 {
+		detalle, _ := io.ReadAll(io.LimitReader(respuesta.Body, 2048))
+		return fmt.Errorf("el servicio respondió %d: %s", respuesta.StatusCode, detalle)
+	}
+	return nil
 }
 
 // percentil devuelve el percentil pedido por el método del índice más cercano.

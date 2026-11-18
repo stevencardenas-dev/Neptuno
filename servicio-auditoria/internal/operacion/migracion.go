@@ -76,6 +76,27 @@ var migraciones = []string{
     constraint ck_medicion_ventana check (ventana_hasta > ventana_desde),
     index ix_medicion_servicio (servicio, ventana_desde)
 ) engine = InnoDB default charset = utf8mb4`,
+
+	`create table if not exists prueba_carga (
+    id                     binary(16)   not null,
+    escenario              varchar(120) not null,
+    herramienta            varchar(20)  not null,
+    usuarios_concurrentes  int          not null,
+    duracion_segundos      int          not null,
+    total_solicitudes      int          not null,
+    solicitudes_fallidas   int          not null,
+    solicitudes_por_seg    decimal(10,2) not null,
+    p95_ms                 int          not null,
+    p99_ms                 int          not null,
+    limite_ms              int          not null default 2000,
+    cumple                 boolean      generated always as (p95_ms <= limite_ms) stored,
+    reporte_clave          varchar(300) null,
+    ejecutada_por          binary(16)   not null,
+    ejecutada_en           datetime(6)  not null,
+    primary key (id),
+    constraint ck_prueba_herramienta check (herramienta in ('K6', 'GATLING', 'JMETER', 'GO')),
+    constraint ck_prueba_usuarios check (usuarios_concurrentes > 0)
+) engine = InnoDB default charset = utf8mb4`,
 }
 
 // AplicarMigracion deja las tablas de operación en su sitio.

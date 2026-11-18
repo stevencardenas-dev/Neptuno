@@ -2,11 +2,14 @@ package operacion
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"neptuno/auditoria/internal/comun"
 )
 
 // muestrasMaximas acota lo que se guarda por ruta. La medición es una ventana móvil: con
@@ -144,6 +147,48 @@ func (s *Servicio) ListarMediciones(ctx context.Context, servicio string, limite
 	return s.repositorio.ListarMediciones(ctx, servicio, limite)
 }
 
+// RegistrarPruebaCarga valida y guarda el resultado de una prueba (HU-085).
+func (s *Servicio) RegistrarPruebaCarga(ctx context.Context, prueba PruebaCarga, actor string) (PruebaCarga, error) {
+	prueba.Escenario = strings.TrimSpace(prueba.Escenario)
+	if prueba.Escenario == "" {
+		return PruebaCarga{}, comun.ReglaInvalida("La prueba de carga necesita un escenario.")
+	}
+	switch prueba.Herramienta {
+	case "K6", "GATLING", "JMETER", "GO":
+	default:
+		return PruebaCarga{}, comun.ReglaInvalida("La herramienta debe ser K6, GATLING, JMETER o GO.",
+			prueba.Herramienta+" no es una herramienta válida")
+	}
+	if prueba.UsuariosConcurrentes <= 0 {
+		return PruebaCarga{}, comun.ReglaInvalida("La prueba necesita al menos un usuario concurrente.")
+	}
+	if prueba.DuracionSegundos <= 0 {
+		return PruebaCarga{}, comun.ReglaInvalida("La prueba necesita una duración en segundos.")
+	}
+	if prueba.TotalSolicitudes <= 0 {
+		return PruebaCarga{}, comun.ReglaInvalida("La prueba no registró solicitudes.")
+	}
+	if prueba.SolicitudesFallidas < 0 || prueba.SolicitudesFallidas > prueba.TotalSolicitudes {
+		return PruebaCarga{}, comun.ReglaInvalida("Las solicitudes fallidas no pueden superar el total.")
+	}
+	if prueba.P95Ms < 0 || prueba.P99Ms < prueba.P95Ms {
+		return PruebaCarga{}, comun.ReglaInvalida("El p99 no puede ser menor que el p95.")
+	}
+	if prueba.SolicitudesPorSeg <= 0 {
+		prueba.SolicitudesPorSeg = float64(prueba.TotalSolicitudes) / float64(prueba.DuracionSegundos)
+	}
+	prueba.EjecutadaPor = actor
+	return s.repositorio.CrearPruebaCarga(ctx, prueba)
+}
+
+// ListarPruebasCarga devuelve las pruebas ejecutadas.
+func (s *Servicio) ListarPruebasCarga(ctx context.Context, limite int) ([]PruebaCarga, error) {
+	if limite <= 0 {
+		limite = 25
+	}
+	return s.repositorio.ListarPruebasCarga(ctx, limite)
+}
+
 // percentil devuelve el percentil pedido de una lista de milisegundos, sin modificar la
 // lista original. Usa el método del índice más cercano, que es el que reportan k6 y
 // JMeter: con pocas muestras no interpola valores que nadie midió.
@@ -161,4 +206,15 @@ func percentil(muestras []int, p int) int {
 		indice = len(ordenadas) - 1
 	}
 	return ordenadas[indice]
+}
+
+// resumenTexto es una ayuda para los registros: «3 rutas, peor p95 41 ms».
+func resumenTexto(mediciones []Medicion) string {
+	peor := 0
+	for _, medicion := range mediciones {
+		if medicion.P95Ms > peor {
+			peor = medicion.P95Ms
+		}
+	}
+	return fmt.Sprintf("%d rutas, peor p95 %d ms", len(mediciones), peor)
 }

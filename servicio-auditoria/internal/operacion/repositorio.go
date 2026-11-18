@@ -363,6 +363,73 @@ func (r *Repositorio) ListarMediciones(ctx context.Context, servicio string, lim
 	return mediciones, errorsDe(filas)
 }
 
+// CrearPruebaCarga registra el resultado de una prueba con usuarios concurrentes (HU-085).
+func (r *Repositorio) CrearPruebaCarga(ctx context.Context, prueba PruebaCarga) (PruebaCarga, error) {
+	crudo, texto := nuevoUUID()
+	prueba.ID = texto
+	if prueba.LimiteMs <= 0 {
+		prueba.LimiteMs = LimiteMs
+	}
+	if prueba.EjecutadaEn.IsZero() {
+		prueba.EjecutadaEn = time.Now().UTC()
+	}
+	_, err := r.base.ExecContext(ctx, `insert into prueba_carga
+		(id, escenario, herramienta, usuarios_concurrentes, duracion_segundos, total_solicitudes,
+		 solicitudes_fallidas, solicitudes_por_seg, p95_ms, p99_ms, limite_ms, reporte_clave,
+		 ejecutada_por, ejecutada_en)
+		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		crudo, prueba.Escenario, prueba.Herramienta, prueba.UsuariosConcurrentes,
+		prueba.DuracionSegundos, prueba.TotalSolicitudes, prueba.SolicitudesFallidas,
+		prueba.SolicitudesPorSeg, prueba.P95Ms, prueba.P99Ms, prueba.LimiteMs,
+		prueba.ReporteClave, aBinario(prueba.EjecutadaPor), prueba.EjecutadaEn)
+	if err != nil {
+		return PruebaCarga{}, fmt.Errorf("no se pudo registrar la prueba de carga: %w", err)
+	}
+	prueba.Cumple = prueba.P95Ms <= prueba.LimiteMs
+	return prueba, nil
+}
+
+// ListarPruebasCarga devuelve las pruebas ejecutadas, de la más reciente a la más antigua.
+func (r *Repositorio) ListarPruebasCarga(ctx context.Context, limite int) ([]PruebaCarga, error) {
+	const consulta = `select id, escenario, herramienta, usuarios_concurrentes, duracion_segundos,
+		total_solicitudes, solicitudes_fallidas, solicitudes_por_seg, p95_ms, p99_ms, limite_ms,
+		cumple, reporte_clave, ejecutada_por, ejecutada_en
+		from prueba_carga order by ejecutada_en desc limit ?`
+	filas, err := r.base.QueryContext(ctx, consulta, limite)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudieron listar las pruebas de carga: %w", err)
+	}
+	defer func() { _ = filas.Close() }()
+
+	pruebas := []PruebaCarga{}
+	for filas.Next() {
+		var (
+			prueba     PruebaCarga
+			id         []byte
+			ejecutada  []byte
+			porSegundo []byte
+		)
+		if err := filas.Scan(&id, &prueba.Escenario, &prueba.Herramienta,
+			&prueba.UsuariosConcurrentes, &prueba.DuracionSegundos, &prueba.TotalSolicitudes,
+			&prueba.SolicitudesFallidas, &porSegundo, &prueba.P95Ms, &prueba.P99Ms,
+			&prueba.LimiteMs, &prueba.Cumple, &prueba.ReporteClave, &ejecutada,
+			&prueba.EjecutadaEn); err != nil {
+			return nil, fmt.Errorf("no se pudo leer una prueba de carga: %w", err)
+		}
+		if texto := aUUID(id); texto != nil {
+			prueba.ID = *texto
+		}
+		if texto := aUUID(ejecutada); texto != nil {
+			prueba.EjecutadaPor = *texto
+		}
+		if valor, err := decimalDe(porSegundo); err == nil {
+			prueba.SolicitudesPorSeg = valor
+		}
+		pruebas = append(pruebas, prueba)
+	}
+	return pruebas, errorsDe(filas)
+}
+
 // lector es lo que comparten *sql.Row y *sql.Rows.
 type lector interface {
 	Scan(destino ...any) error

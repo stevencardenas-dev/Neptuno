@@ -108,18 +108,23 @@ public class DatosIniciales implements ApplicationRunner {
                 TipoRol.OPERATIVO, List.of(
                         "radicados:consultar", "radicados:crear", "radicados:editar", "anexos:cargar", "anexos:eliminar",
                         CatalogoPermisos.RADICADOS_RADICAR_RECIBIDO, "radicados:clase", "expediente:ver",
+                        CatalogoPermisos.EXPEDIENTE_CARGAR, CatalogoPermisos.PLANTILLAS_USAR,
                         "flujo:iniciar", CatalogoPermisos.CATALOGOS_CONSULTAR));
         sembrarRol("Tesorero", "Gestiona pagos, valida cuentas de cobro y aprueba documentos financieros.",
                 TipoRol.OPERATIVO, List.of(
                         "radicados:consultar", "radicados:editar", "flujo:aprobar", "expediente:ver",
+                        CatalogoPermisos.EXPEDIENTE_CARGAR, CatalogoPermisos.PLANTILLAS_USAR,
                         CatalogoPermisos.CATALOGOS_CONSULTAR));
         sembrarRol("Gerente", "Aprueba documentos estratégicos y aplica firma electrónica.",
                 TipoRol.APROBADOR, List.of(
-                        "flujo:aprobar", "firma:aplicar", "expediente:ver", "bitacora:consultar"));
+                        "flujo:aprobar", "firma:aplicar", "firma:consultar", "expediente:ver",
+                        CatalogoPermisos.EXPEDIENTE_CARGAR, CatalogoPermisos.PLANTILLAS_USAR, "bitacora:consultar"));
         sembrarRol("Auditor", "Consulta la bitácora y el historial documental sin poder modificarlo.",
-                TipoRol.CONTROL, List.of("bitacora:consultar", "bitacora:filtrar", "expediente:ver"));
+                TipoRol.CONTROL, List.of("bitacora:consultar", "bitacora:filtrar", "expediente:ver",
+                        CatalogoPermisos.RENDIMIENTO_CONSULTAR, CatalogoPermisos.FIRMA_CONSULTAR));
         sembrarRol("Aprobador", "Atiende tareas de flujo y aprueba, rechaza o devuelve documentos.",
-                TipoRol.APROBADOR, List.of("flujo:aprobar", "flujo:rechazar", "expediente:ver"));
+                TipoRol.APROBADOR, List.of("flujo:aprobar", "flujo:rechazar", "expediente:ver",
+                        CatalogoPermisos.EXPEDIENTE_CARGAR, CatalogoPermisos.PLANTILLAS_USAR));
     }
 
     private void sembrarRol(String nombre, String descripcion, TipoRol tipo, List<String> codigosPermisos) {

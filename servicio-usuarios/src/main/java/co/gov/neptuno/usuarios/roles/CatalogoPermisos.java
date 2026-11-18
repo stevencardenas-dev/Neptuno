@@ -34,6 +34,14 @@ public final class CatalogoPermisos {
     /** HU-024: radicar documentos de origen Recibido; exclusivo del rol Radicador. */
     public static final String RADICADOS_RADICAR_RECIBIDO = "radicados:radicar-recibido";
 
+    public static final String EXPEDIENTE_ADMINISTRAR = "expediente:administrar";
+    public static final String EXPEDIENTE_CARGAR = "expediente:cargar";
+    public static final String PLANTILLAS_ADMINISTRAR = "plantillas:administrar";
+    public static final String PLANTILLAS_USAR = "plantillas:usar";
+    public static final String RESPALDOS_ADMINISTRAR = "respaldos:administrar";
+    public static final String RENDIMIENTO_CONSULTAR = "rendimiento:consultar";
+    public static final String FIRMA_CONSULTAR = "firma:consultar";
+
     /** Definición de un permiso del catálogo. */
     public record Definicion(String codigo, String nombre, String modulo, String descripcion) {
     }
@@ -89,6 +97,20 @@ public final class CatalogoPermisos {
                     "Firmar electrónicamente un documento autorizado (HU-075)."),
             new Definicion("expediente:ver", "Ver expediente central", MODULO_EXPEDIENTE,
                     "Consultar las carpetas y documentos del expediente (HU-032)."),
+            new Definicion(EXPEDIENTE_ADMINISTRAR, "Administrar carpetas del expediente", MODULO_EXPEDIENTE,
+                    "Crear, editar y desactivar carpetas, subcarpetas y sus accesos (HU-030, HU-031, HU-033)."),
+            new Definicion(EXPEDIENTE_CARGAR, "Cargar en el expediente", MODULO_EXPEDIENTE,
+                    "Cargar documentos No radicables y anexos en una carpeta del expediente (HU-034)."),
+            new Definicion(PLANTILLAS_ADMINISTRAR, "Administrar plantillas", MODULO_EXPEDIENTE,
+                    "Subir y mantener las plantillas DOCX y sus variables (HU-035, HU-036)."),
+            new Definicion(PLANTILLAS_USAR, "Usar plantillas", MODULO_EXPEDIENTE,
+                    "Generar documentos y PDF a partir de una plantilla (HU-037, HU-038)."),
+            new Definicion(RESPALDOS_ADMINISTRAR, "Administrar respaldos y rendimiento", MODULO_EXPEDIENTE,
+                    "Programar copias de seguridad, restaurarlas y ejecutar pruebas de carga (HU-081, HU-082, HU-085)."),
+            new Definicion(RENDIMIENTO_CONSULTAR, "Consultar rendimiento", MODULO_EXPEDIENTE,
+                    "Ver los tiempos de respuesta frente al límite de 2 s y las pruebas de carga (HU-084, HU-085)."),
+            new Definicion(FIRMA_CONSULTAR, "Consultar firmas", MODULO_FLUJO,
+                    "Ver las firmas electrónicas aplicadas a un trámite (HU-077)."),
             new Definicion("bitacora:consultar", "Consultar bitácora", MODULO_EXPEDIENTE,
                     "Consultar el historial de acciones del sistema (HU-046)."),
             new Definicion("bitacora:filtrar", "Filtrar bitácora", MODULO_EXPEDIENTE,

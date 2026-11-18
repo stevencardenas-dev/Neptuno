@@ -97,6 +97,25 @@ type Medicion struct {
 	Cumple       bool      `json:"cumple"`
 }
 
+// PruebaCarga es la ejecución de una prueba con usuarios concurrentes (HU-085).
+type PruebaCarga struct {
+	ID                   string    `json:"id"`
+	Escenario            string    `json:"escenario"`
+	Herramienta          string    `json:"herramienta"`
+	UsuariosConcurrentes int       `json:"usuariosConcurrentes"`
+	DuracionSegundos     int       `json:"duracionSegundos"`
+	TotalSolicitudes     int       `json:"totalSolicitudes"`
+	SolicitudesFallidas  int       `json:"solicitudesFallidas"`
+	SolicitudesPorSeg    float64   `json:"solicitudesPorSegundo"`
+	P95Ms                int       `json:"p95Ms"`
+	P99Ms                int       `json:"p99Ms"`
+	LimiteMs             int       `json:"limiteMs"`
+	Cumple               bool      `json:"cumple"`
+	ReporteClave         *string   `json:"reporteClave"`
+	EjecutadaPor         string    `json:"ejecutadaPor"`
+	EjecutadaEn          time.Time `json:"ejecutadaEn"`
+}
+
 // nuevoUUID devuelve el uuid en los 16 bytes de una columna binary(16) y en texto.
 func nuevoUUID() ([]byte, string) {
 	crudo := make([]byte, 16)

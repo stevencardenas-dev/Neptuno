@@ -25,7 +25,14 @@ class CatalogoPermisosPrueba {
             "roles:eliminar",
             "roles:asignar-permisos",
             "catalogos:consultar",
-            "catalogos:administrar");
+            "catalogos:administrar",
+            "expediente:administrar",
+            "expediente:cargar",
+            "plantillas:administrar",
+            "plantillas:usar",
+            "respaldos:administrar",
+            "rendimiento:consultar",
+            "firma:consultar");
 
     @Test
     @DisplayName("HU-011: el catálogo declarado cubre todos los permisos que valida el API")
@@ -41,7 +48,7 @@ class CatalogoPermisosPrueba {
     @Test
     @DisplayName("HU-011: cada permiso tiene módulo y descripción")
     void cadaPermisoEstaDocumentado() {
-        assertThat(CatalogoPermisos.definiciones()).hasSize(27);
+        assertThat(CatalogoPermisos.definiciones()).hasSize(34);
         assertThat(CatalogoPermisos.definiciones()).allSatisfy(definicion -> {
             assertThat(definicion.nombre()).isNotBlank();
             assertThat(definicion.modulo()).isNotBlank();

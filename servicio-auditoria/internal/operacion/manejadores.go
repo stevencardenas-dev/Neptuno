@@ -42,6 +42,8 @@ func (m *Manejadores) Registrar(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/auditoria/rendimiento", rendimiento)
 	mux.HandleFunc("GET /api/auditoria/rendimiento/capturas", comun.RequierePermiso(PermisoRendimiento, m.listarCapturas))
 	mux.HandleFunc("POST /api/auditoria/rendimiento/capturas", comun.RequierePermiso(PermisoRendimiento, m.capturar))
+	mux.HandleFunc("GET /api/auditoria/rendimiento/pruebas-carga", comun.RequierePermiso(PermisoRendimiento, m.listarPruebas))
+	mux.HandleFunc("POST /api/auditoria/rendimiento/pruebas-carga", comun.RequierePermiso(PermisoRendimiento, m.registrarPrueba))
 }
 
 // programacion devuelve la copia programada (HU-081).
@@ -183,6 +185,35 @@ func (m *Manejadores) listarCapturas(w http.ResponseWriter, r *http.Request) {
 		"contenido": mediciones,
 		"total":     len(mediciones),
 	})
+}
+
+// listarPruebas devuelve las pruebas de carga ejecutadas (HU-085).
+func (m *Manejadores) listarPruebas(w http.ResponseWriter, r *http.Request) {
+	pruebas, err := m.servicio.ListarPruebasCarga(r.Context(), leerLimite(r))
+	if err != nil {
+		comun.EscribirError(w, err)
+		return
+	}
+	comun.EscribirJSON(w, http.StatusOK, map[string]any{
+		"contenido": pruebas,
+		"total":     len(pruebas),
+	})
+}
+
+// registrarPrueba guarda el resultado que produce el generador de carga (HU-085).
+func (m *Manejadores) registrarPrueba(w http.ResponseWriter, r *http.Request) {
+	var cuerpo PruebaCarga
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16*1024)).Decode(&cuerpo); err != nil {
+		comun.EscribirError(w, comun.ReglaInvalida("El cuerpo de la solicitud no es JSON válido.", err.Error()))
+		return
+	}
+	actor, _ := comun.ActorDe(r)
+	prueba, err := m.servicio.RegistrarPruebaCarga(r.Context(), cuerpo, actor.ID)
+	if err != nil {
+		comun.EscribirError(w, err)
+		return
+	}
+	comun.EscribirJSON(w, http.StatusCreated, prueba)
 }
 
 // leerLimite lee «limite» de la cadena de consulta, acotado.
