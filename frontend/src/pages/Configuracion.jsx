@@ -9,7 +9,7 @@ import {
 import { useSesion } from '../sesion/SesionProvider.jsx'
 import { ORIGENES, etiquetaEstadoCatalogo, etiquetaOrigen } from '../util/formato.js'
 import {
-  IconArchivo, IconCheck, IconConfig, IconEditar, IconEscudo, IconGlobo, IconMas, IconPapelera,
+  IconArchivo, IconCheck, IconConfig, IconEditar, IconEscudo, IconGlobo, IconMas, IconPapelera, IconReactivar,
 } from '../components/Icons.jsx'
 
 const tabs = [
@@ -202,7 +202,7 @@ function Acciones({ registro, administrable, guardando, onEditar, onCambiarEstad
         title={registro.estado === 'ACTIVO' ? 'Desactivar' : 'Reactivar'}
         onClick={() => onCambiarEstado(registro)}
       >
-        <IconPapelera size={15} />
+        {registro.estado === 'ACTIVO' ? <IconPapelera size={15} /> : <IconReactivar size={15} />}
       </button>
     </div>
   )

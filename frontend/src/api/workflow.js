@@ -146,9 +146,13 @@ export function tramiteDeRadicado(radicadoId) {
   return peticion(`/tramites/radicado/${radicadoId}`, { base: BASE_WORKFLOW })
 }
 
-/** HU-063: tareas que la sesión puede atender ahora mismo. */
-export function listarBandeja() {
-  return peticion('/bandeja', { base: BASE_WORKFLOW })
+/**
+ * HU-063, HU-064: tareas que la sesión puede atender ahora mismo, con filtros por tipo
+ * documental, origen, fecha y orden. La bandeja no trae el tipo ni el origen del
+ * radicado: esas columnas se filtran en el servicio con los ids que llegan del formulario.
+ */
+export function listarBandeja(filtros = {}) {
+  return peticion('/bandeja', { parametros: filtros, base: BASE_WORKFLOW })
 }
 
 /** HU-063: detalle con el recorrido y las acciones disponibles. */
@@ -169,6 +173,16 @@ export function ejecutarTarea(id, datos) {
 /** HU-070: liberar la tarea para que otro responsable la tome. */
 export function liberarTarea(id) {
   return peticion(`/tareas/${id}/liberar`, { metodo: 'POST', base: BASE_WORKFLOW })
+}
+
+/** HU-075: firmar electrónicamente la tarea de un paso que exige firma. */
+export function firmarTarea(id, datos = {}) {
+  return peticion(`/tareas/${id}/firmar`, { metodo: 'POST', cuerpo: datos, base: BASE_WORKFLOW })
+}
+
+/** HU-077: firmas aplicadas al trámite. */
+export function firmasDeTramite(id) {
+  return peticion(`/tramites/${id}/firmas`, { base: BASE_WORKFLOW })
 }
 
 /** HU-069: grupos de trabajo que pueden atender un paso. */

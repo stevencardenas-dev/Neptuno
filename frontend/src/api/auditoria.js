@@ -28,3 +28,65 @@ export function verificarCadena() {
 export function facetasBitacora() {
   return peticion('/bitacora/facetas', { base: BASE_AUDITORIA })
 }
+
+/**
+ * Respaldos, restauración y rendimiento (HU-081, HU-082, HU-084, HU-085).
+ *
+ * La programación de copias y la restauración son operaciones de administración; el
+ * rendimiento se consulta con su propio permiso.
+ */
+
+/** HU-081: la copia programada vigente. */
+export function programacionDeRespaldos() {
+  return peticion('/respaldos/programacion', { base: BASE_AUDITORIA })
+}
+
+/** HU-081: frecuencia, hora, retención y alcance de la copia. */
+export function guardarProgramacionDeRespaldos(datos) {
+  return peticion('/respaldos/programacion', { metodo: 'PUT', cuerpo: datos, base: BASE_AUDITORIA })
+}
+
+/** HU-081: ejecuciones, de la más reciente a la más antigua. */
+export function listarRespaldos(limite = 25) {
+  return peticion('/respaldos', { parametros: { limite }, base: BASE_AUDITORIA })
+}
+
+/** HU-081: lanzar una copia ahora. */
+export function ejecutarRespaldo() {
+  return peticion('/respaldos', { metodo: 'POST', base: BASE_AUDITORIA })
+}
+
+/** HU-082: solicitar una restauración; queda pendiente de que otra persona la confirme. */
+export function solicitarRestauracion(respaldoId, motivo) {
+  return peticion('/restauraciones', { metodo: 'POST', cuerpo: { respaldoId, motivo }, base: BASE_AUDITORIA })
+}
+
+/** HU-082: solicitudes de restauración. */
+export function listarRestauraciones(limite = 25) {
+  return peticion('/restauraciones', { parametros: { limite }, base: BASE_AUDITORIA })
+}
+
+/** HU-082: confirmar y ejecutar una restauración solicitada. */
+export function ejecutarRestauracion(id) {
+  return peticion(`/restauraciones/${id}/ejecutar`, { metodo: 'POST', base: BASE_AUDITORIA })
+}
+
+/** HU-084: percentiles vivos de este proceso frente al límite de 2 s. */
+export function resumenRendimiento() {
+  return peticion('/rendimiento', { base: BASE_AUDITORIA })
+}
+
+/** HU-084: guardar la ventana actual para compararla después. */
+export function capturarRendimiento() {
+  return peticion('/rendimiento/capturas', { metodo: 'POST', base: BASE_AUDITORIA })
+}
+
+/** HU-084: capturas guardadas. */
+export function listarCapturasDeRendimiento(limite = 50) {
+  return peticion('/rendimiento/capturas', { parametros: { limite }, base: BASE_AUDITORIA })
+}
+
+/** HU-085: pruebas de carga ejecutadas y su resultado. */
+export function listarPruebasDeCarga(limite = 25) {
+  return peticion('/rendimiento/pruebas-carga', { parametros: { limite }, base: BASE_AUDITORIA })
+}

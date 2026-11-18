@@ -3,7 +3,8 @@ import { alternarTema, temaActual } from '../util/tema.js'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useSesion } from '../sesion/SesionProvider.jsx'
 import {
-  IconArchivo, IconBandeja, IconConfig, IconDocumentos, IconEscudo, IconFlujo, IconResumen, IconRoles, IconSalir, IconTridente, IconUsuarios,
+  IconArchivo, IconBandeja, IconCarpeta, IconConfig, IconDocumentos, IconEscudo, IconFlujo, IconResumen,
+  IconRoles, IconSalir, IconTridente, IconUsuarios,
 } from './Icons.jsx'
 
 // Cada vista con `permiso` solo se ofrece si la sesión trae ese permiso (HU-013).
@@ -18,6 +19,8 @@ const grupos = [
     titulo: 'Radicación',
     enlaces: [
       { to: '/app/radicacion', label: 'Radicados', Icono: IconDocumentos, permiso: 'radicados:consultar' },
+      { to: '/app/expediente', label: 'Expediente', Icono: IconCarpeta, permisos: ['expediente:ver', 'expediente:administrar'] },
+      { to: '/app/plantillas', label: 'Plantillas', Icono: IconDocumentos, permisos: ['plantillas:usar', 'plantillas:administrar'] },
       { to: '/app/copias', label: 'Copias recibidas', Icono: IconArchivo },
     ],
   },
@@ -33,6 +36,7 @@ const grupos = [
     titulo: 'Auditoría',
     enlaces: [
       { to: '/app/bitacora', label: 'Bitácora', Icono: IconEscudo, permiso: 'bitacora:consultar' },
+      { to: '/app/operacion', label: 'Operación', Icono: IconConfig, permisos: ['respaldos:administrar', 'rendimiento:consultar'] },
     ],
   },
   {
@@ -51,11 +55,14 @@ const grupos = [
 const secciones = {
   '/app': 'Inicio',
   '/app/radicacion': 'Radicación',
+  '/app/expediente': 'Radicación',
+  '/app/plantillas': 'Radicación',
   '/app/copias': 'Radicación',
   '/app/flujos': 'Flujo de trabajo',
   '/app/bandeja': 'Flujo de trabajo',
   '/app/grupos': 'Flujo de trabajo',
   '/app/bitacora': 'Auditoría',
+  '/app/operacion': 'Auditoría',
   '/app/usuarios': 'Administración',
   '/app/roles': 'Administración',
   '/app/configuracion': 'Administración',

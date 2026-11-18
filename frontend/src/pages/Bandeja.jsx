@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Card, KV, Modal, Note, PageHead } from '../components/ui.jsx'
 import { usePeticion } from '../api/usePeticion.js'
-import { consultarTramite, ejecutarTarea, liberarTarea, listarBandeja, tomarTarea } from '../api/workflow.js'
+import { consultarTramite, ejecutarTarea, firmarTarea, liberarTarea, listarBandeja, tomarTarea } from '../api/workflow.js'
 import { listarTiposDocumentales } from '../api/catalogos.js'
 import { formatearFecha, formatearFechaHora, etiquetaOrigen } from '../util/formato.js'
-import { IconBandeja, IconCheck, IconInfo } from '../components/Icons.jsx'
+import { useSesion } from '../sesion/SesionProvider.jsx'
+import { IconBandeja, IconCheck, IconEscudo, IconInfo } from '../components/Icons.jsx'
 
 /**
  * Bandeja de entrada (HU-063…HU-074).
@@ -41,10 +42,12 @@ function estadoTarea(tarea) {
     : { tono: 'ambar', texto: 'Tomada por otra persona' }
 }
 
-function AtenderTarea({ tarea, onCerrar, onHecho }) {
+function AtenderTarea({ tarea, onCerrar, onHecho, puedeFirmar }) {
   const [observacion, setObservacion] = useState('')
   const [enviando, setEnviando] = useState('')
   const [error, setError] = useState(null)
+  const [firmando, setFirmando] = useState(false)
+  const [firmaPuesta, setFirmaPuesta] = useState(false)
   const detalle = usePeticion(() => consultarTramite(tarea.tramiteId), [tarea.tramiteId])
 
   const tramite = detalle.datos
@@ -94,6 +97,25 @@ function AtenderTarea({ tarea, onCerrar, onHecho }) {
     }
   }
 
+  /** HU-075: la firma es personal y se pone antes de mover el paso que la exige. */
+  async function firmar() {
+    setFirmando(true)
+    setError(null)
+    try {
+      await firmarTarea(tarea.id, { metodo: 'ELECTRONICA' })
+      setFirmaPuesta(true)
+      detalle.recargar()
+    } catch (fallo) {
+      setError(fallo)
+    } finally {
+      setFirmando(false)
+    }
+  }
+
+  const exigeFirma = Boolean(abierta?.requiereFirma ?? tarea.requiereFirma)
+  const yaFirmada = firmaPuesta || Boolean(abierta?.firmada ?? tarea.firmada)
+  const bloqueaFirma = exigeFirma && !yaFirmada
+
   const tonoPlazo = plazo(tarea)
   const estado = estadoTarea(tarea)
 
@@ -116,13 +138,19 @@ function AtenderTarea({ tarea, onCerrar, onHecho }) {
             {enviando === 'LIBERAR' ? 'Liberando…' : 'Liberar'}
           </button>,
         ] : []),
+        ...(propia && exigeFirma && !yaFirmada && puedeFirmar ? [
+          <button key="f" className="btn" type="button" disabled={firmando} onClick={firmar}>
+            <IconEscudo size={15} /> {firmando ? 'Firmando…' : 'Firmar'}
+          </button>,
+        ] : []),
         ...(propia ? acciones.map((accion) => (
           <button
             key={accion.transicionId}
             className={`btn${accion.accion === 'CANCELAR' ? ' danger' : accion.accion === 'DEVOLVER' ? ' secondary' : ''}`}
             type="button"
-            disabled={Boolean(enviando) || (exigeMotivo(accion.accion) && !motivoListo)}
-            title={exigeMotivo(accion.accion) && !motivoListo ? 'Escribe el motivo (mínimo 3 caracteres).' : undefined}
+            disabled={Boolean(enviando) || bloqueaFirma || (exigeMotivo(accion.accion) && !motivoListo)}
+            title={bloqueaFirma ? 'Este paso exige tu firma electrónica antes de avanzar.'
+              : exigeMotivo(accion.accion) && !motivoListo ? 'Escribe el motivo (mínimo 3 caracteres).' : undefined}
             onClick={() => ejecutar(accion.accion)}
           >
             {enviando === accion.accion ? 'Guardando…' : accion.etiqueta}
@@ -151,6 +179,7 @@ function AtenderTarea({ tarea, onCerrar, onHecho }) {
             { k: 'Estado', v: tramite.estado === 'EN_CURSO' ? 'En curso' : tramite.estado === 'FINALIZADO' ? 'Finalizado' : 'Cancelado' },
             { k: 'Iniciado', v: formatearFecha(tramite.iniciadoEn) },
             { k: 'Tarea', v: estado.texto },
+            ...(exigeFirma ? [{ k: 'Firma', v: yaFirmada ? 'Firmada por ti' : 'Pendiente' }] : []),
           ]} />
 
           {propia && acciones.length ? (
@@ -223,14 +252,12 @@ function AtenderTarea({ tarea, onCerrar, onHecho }) {
   )
 }
 
-/** HU-064: sin filtros, la bandeja sale ordenada por vencimiento. */
-const FILTROS_VACIOS = { tipoDocumentalId: '', origen: '', orden: 'VENCIMIENTO', vencidas: false, desde: '', hasta: '' }
-
 export default function Bandeja() {
-  const [filtros, setFiltros] = useState(FILTROS_VACIOS)
+  const [filtros, setFiltros] = useState({ tipoDocumentalId: '', origen: '', orden: 'VENCIMIENTO', vencidas: false, desde: '', hasta: '' })
   const tipos = usePeticion(() => listarTiposDocumentales({ estado: 'ACTIVO', tamano: 100 }), [])
   const bandeja = usePeticion(() => listarBandeja(filtros), [filtros])
   const [atendiendo, setAtendiendo] = useState(null)
+  const { puede } = useSesion()
 
   const tareas = bandeja.datos ?? []
   const sinTomar = tareas.filter((tarea) => tarea.estado === 'PENDIENTE').length
@@ -238,6 +265,10 @@ export default function Bandeja() {
 
   function cambiar(campo, valor) {
     setFiltros((actuales) => ({ ...actuales, [campo]: valor }))
+  }
+
+  function limpiar() {
+    setFiltros({ tipoDocumentalId: '', origen: '', orden: 'VENCIMIENTO', vencidas: false, desde: '', hasta: '' })
   }
 
   return (
@@ -273,12 +304,12 @@ export default function Bandeja() {
         </select>
         <input type="date" aria-label="Creadas desde" value={filtros.desde} onChange={(e) => cambiar('desde', e.target.value)} />
         <input type="date" aria-label="Creadas hasta" value={filtros.hasta} onChange={(e) => cambiar('hasta', e.target.value)} />
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <label className="check">
           <input type="checkbox" checked={filtros.vencidas} onChange={(e) => cambiar('vencidas', e.target.checked)} />
           <span>Solo vencidas</span>
         </label>
         {conFiltros ? (
-          <button className="btn ghost sm" type="button" onClick={() => setFiltros(FILTROS_VACIOS)}>Limpiar filtros</button>
+          <button className="btn ghost sm" type="button" onClick={limpiar}>Limpiar filtros</button>
         ) : null}
       </div>
 
@@ -316,6 +347,11 @@ export default function Bandeja() {
                     <td>
                       <span className={`badge ${estado.tono}`}>{estado.texto}</span>
                       {tarea.supervision ? <span className="badge violeta" style={{ marginLeft: 6 }}>Supervisión</span> : null}
+                      {tarea.requiereFirma ? (
+                        <span className={`badge ${tarea.firmada ? 'verde' : 'ambar'}`} style={{ marginLeft: 6 }}>
+                          {tarea.firmada ? 'Firmada' : 'Requiere firma'}
+                        </span>
+                      ) : null}
                     </td>
                     <td>
                       <div className="td-actions" onClick={(e) => e.stopPropagation()}>
@@ -350,6 +386,7 @@ export default function Bandeja() {
       {atendiendo ? (
         <AtenderTarea
           tarea={atendiendo}
+          puedeFirmar={puede('firma:aplicar')}
           onCerrar={() => setAtendiendo(null)}
           onHecho={() => { setAtendiendo(null); bandeja.recargar() }}
         />

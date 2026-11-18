@@ -54,6 +54,9 @@ export const IconArchivo = (p) => (
 export const IconPapelera = (p) => (
   <Svg {...p}><path d="M4 7h16" /><path d="M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2" /><path d="M6 7l1 12.5A2 2 0 0 0 9 21.5h6a2 2 0 0 0 2-2L18 7" /><path d="M10 11v6M14 11v6" /></Svg>
 )
+export const IconReactivar = (p) => (
+  <Svg {...p}><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1" /><path d="M3.5 4.5v4h4" /></Svg>
+)
 export const IconEditar = (p) => (
   <Svg {...p}><path d="M4 20h4l10-10a2.4 2.4 0 0 0-3.4-3.4L4 16.5z" /><path d="M13.5 7.5l3 3" /></Svg>
 )
@@ -110,6 +113,13 @@ export const IconBandeja = (p) => (
 export const IconAdjuntar = (p) => (
   <Svg {...p}>
     <path d="M20 11.4 12.6 19a4.6 4.6 0 0 1-6.5-6.5l7.7-7.7a3.1 3.1 0 0 1 4.4 4.4l-7.6 7.6a1.6 1.6 0 0 1-2.2-2.2l6.9-6.9" />
+  </Svg>
+)
+
+/* Carpeta: el árbol del expediente y sus nodos. */
+export const IconCarpeta = (p) => (
+  <Svg {...p}>
+    <path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h3.4l2 2.4H18a2.5 2.5 0 0 1 2.5 2.5v7.6A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z" />
   </Svg>
 )
 

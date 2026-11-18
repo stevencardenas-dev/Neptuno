@@ -4,6 +4,7 @@ import { Card, KV, Modal, Note, PageHead } from '../components/ui.jsx'
 import { usePeticion } from '../api/usePeticion.js'
 import { crearRadicado, editarRadicado, listarRadicados, obtenerRadicado } from '../api/documentos.js'
 import { AnexosRadicado } from '../components/AnexosRadicado.jsx'
+import { CopiasYPlantillas } from '../components/CopiasYPlantillas.jsx'
 import { listarAreas, listarEntidades, listarTiposDocumentales } from '../api/catalogos.js'
 import { flujosDisponibles, iniciarTramite, tramiteDeRadicado } from '../api/workflow.js'
 import { useSesion } from '../sesion/SesionProvider.jsx'
@@ -154,6 +155,12 @@ function DetalleRadicado({ id, tipos, areas, entidades, onCerrar, onEditar, onEn
             radicadoId={r.id}
             puedeCargar={puede('anexos:cargar')}
             puedeEliminar={puede('anexos:eliminar')}
+          />
+
+          <CopiasYPlantillas
+            radicado={r}
+            puedeCopiar={puede('radicados:consultar') || puede('expediente:ver')}
+            puedeUsarPlantillas={puede('plantillas:usar') || puede('plantillas:administrar')}
           />
 
           <TramiteRadicado radicadoId={r.id} estado={r.estado} onEnviar={onEnviarFlujo} />
