@@ -1,38 +1,33 @@
 # Hoja de ruta · Neptuno
 
 Este documento reemplaza al antiguo índice de mockups. El frontend ya no muestra
-vistas con datos inventados: cada pantalla que existe consume un microservicio
-real. Lo que sigue es el plan para el resto del backlog (85 historias de
-usuario) y las funcionalidades nuevas que se proponen.
+vistas con datos inventados: cada pantalla consume un microservicio real y las 85
+historias del backlog están cubiertas. Lo que sigue es el registro de lo
+implementado por servicio y las funcionalidades nuevas que se proponen.
 
 > Las vistas prototipo eliminadas (radicación, bandeja, expediente, flujos,
 > plantillas, bitácora, rendimiento) siguen en el historial de git, en el commit
-> `53560f3`, por si se quiere reutilizar su maquetación al implementarlas.
+> `53560f3`; las pantallas actuales se construyeron sobre esos datos reales.
 
 ## Estado actual
 
 | Microservicio | Estado | HU cubiertas |
 |---------------|--------|--------------|
 | `servicio-usuarios` (ms-auth-catalogs) | Implementado | HU-001…HU-016, HU-022 |
-| `servicio-documentos` (ms-document-management) | En curso: radicación (crear, consultar, listar, editar) y anexos en MinIO | HU-017…HU-021, HU-023…HU-026, HU-028, HU-029, HU-039, HU-040 |
-| `servicio-auditoria` (ms-audit-infra) | Implementado: bitácora encadenada por hash, consulta, historial por documento y filtros | HU-043…HU-047 |
-| `servicio-workflow` (ms-workflow-bpm) | En curso: diseñador de flujos y trámites con bandeja de entrada | HU-048…HU-063, HU-066…HU-068, HU-071 |
-| Frontend | Login, panel, usuarios, roles, parámetros, radicación con anexos, bandeja, flujos (lista y lienzo) y bitácora | Las de usuarios, radicación, flujos y auditoría |
+| `servicio-documentos` (ms-document-management) | Implementado: radicación, anexos, expediente, plantillas y copias | HU-017…HU-042 |
+| `servicio-auditoria` (ms-audit-infra) | Implementado: bitácora encadenada, respaldos, restauración, métricas y pruebas de carga | HU-043…HU-047, HU-081, HU-082, HU-084, HU-085 |
+| `servicio-workflow` (ms-workflow-bpm) | Implementado: diseñador, trámites con bandeja filtrable y semáforo, grupos, firma y versionado | HU-048…HU-080, HU-083 |
+| Frontend | Login, panel, usuarios, roles, parámetros, radicación, expediente, plantillas, copias, bandeja, flujos, grupos, bitácora y operación | Todas las historias del backlog |
 
-Avance: **55 de 85 historias (65 %)**. De las 30 que faltan, 12 son de documentos
-(carpetas y expediente, plantillas, copias y la carga de varios anexos a la vez), 14 de
-flujo de trabajo (los tiempos límite y el semáforo, filtros de la bandeja, liberar una
-tarea, grupos como responsables, firma electrónica, versionado explícito y móvil) y 4 de
-auditoría (copias de seguridad, métricas y pruebas de carga). El conteo no pesa todas las historias igual —un formulario no cuesta lo mismo
-que el lienzo de pasos y transiciones— y las funcionalidades propuestas de la sección 2
-van aparte de las 85.
+Avance: **85 de 85 historias (100 %)**. Las funcionalidades propuestas de la sección 2
+van aparte del backlog y no están comprometidas.
 
-## 1. Backlog pendiente, agrupado por microservicio
+## 1. Backlog implementado, agrupado por microservicio
 
 La distribución sigue `docs/Neptuno_Proyecto.docx` (4 microservicios, 85 HU). El
 detalle por historia —microservicio, endpoint estimado, permiso y estado— está en
 la hoja **Product Backlog** de `docs/Neptuno_Requerimientos_Backlog_Sprints.xlsx`,
-y las tablas que necesitan las historias pendientes, en
+y las tablas de cada historia, en
 [`docs/esquema-base-datos.sql`](esquema-base-datos.sql).
 
 Cada servicio tiene su propia base de datos, publica eventos de bitácora en
@@ -42,10 +37,7 @@ interna `/api/usuarios/interno/**` (HU-014).
 
 ### ms-document-management — Radicación, anexos, expediente y plantillas (Node.js · Express)
 
-Implementado en `servicio-documentos/`: HU-017…HU-021, HU-023…HU-026, HU-028, HU-029, HU-039 y
-HU-040 (radicación y anexos en MinIO). Falta el expediente y las plantillas (carpetas,
-subcarpetas, documentos No radicables, plantillas DOCX y copias a destinatarios) y la carga de
-varios anexos en una sola petición (HU-027: hoy se sube un archivo por petición).
+Implementado en `servicio-documentos/`: las 26 historias de documentos (HU-017…HU-042).
 
 | HU | Funcionalidad |
 |----|---------------|
@@ -53,21 +45,22 @@ varios anexos en una sola petición (HU-027: hoy se sube un archivo por petició
 | HU-018, HU-024 | Clasificación por origen; solo el rol Radicador registra Recibido (`radicados:radicar-recibido`) |
 | HU-019, HU-021, HU-039, HU-040 | Metadatos obligatorios y extendidos, clase Original/Copia; edición sin tocar el código |
 | HU-020, HU-023 | Detalle y listado filtrable de radicados |
-| HU-025, HU-026, HU-028, HU-029 | Anexos (PDF, PNG, JPG, DOCX, XLSX) en MinIO, descarga y eliminación con constancia (implementado). Salvedades: el formato inválido responde 400 (el backlog dice 415), solo se valida la extensión y el tipo declarado —no el contenido— y la descarga se entrega por el propio servicio, no con URL prefirmada |
-| HU-027 | Varios archivos en una sola carga (pendiente) |
-| HU-030…HU-034 | Carpetas por área, subcarpetas, árbol del expediente, visibilidad por rol y documentos No radicables |
-| HU-035…HU-038 | Plantillas DOCX con variables, vínculo a orígenes Interno/Externo, render y PDF |
-| HU-041, HU-042 | Envío de copias a destinatarios y bandeja de copias recibidas |
+| HU-025…HU-029 | Anexos (PDF, PNG, JPG, DOCX, XLSX) en MinIO, carga por lote, descarga y eliminación con constancia. Salvedades: el formato inválido responde 400 (el backlog dice 415), solo se valida la extensión y el tipo declarado —no el contenido— y la descarga se entrega por el propio servicio, no con URL prefirmada |
+| HU-030…HU-034 | Carpetas por área, subcarpetas, árbol del expediente con visibilidad por rol o área, accesos heredables y documentos No radicables |
+| HU-035…HU-038 | Plantillas DOCX con variables detectadas del documento, vínculo a orígenes Interno/Externo, render y PDF anexado al radicado |
+| HU-041, HU-042 | Envío de copias a destinatarios y bandeja de copias recibidas con marca de lectura |
 
 ### ms-workflow-bpm — Diseñador de flujos, bandeja y firma (Node.js · NestJS)
 
-Implementado en `servicio-workflow/`: HU-048…HU-063, HU-066…HU-068 y HU-071 — la identidad del flujo (crear, listar,
-consultar y editar), el lienzo de pasos, transiciones y responsables, la validación de
-publicación y el archivo del flujo, más los trámites sobre radicados con bandeja de entrada,
-toma exclusiva y recorrido con observaciones — con su propia base `workflow_bpm_db` y sus
-pantallas "Flujos", "Diseñar flujo" y "Bandeja". La definición vive en la versión del flujo,
-no en el flujo: un flujo en borrador se edita, y al publicarlo su recorrido queda bloqueado
-para que los trámites en curso no cambien de camino.
+Implementado en `servicio-workflow/`: las 33 historias de flujo de trabajo (HU-048…HU-080)
+y la consulta desde el celular (HU-083) — identidad del flujo, lienzo de pasos,
+transiciones y responsables, grupos de trabajo, validación y publicación, trámites sobre
+radicados con bandeja filtrable y semáforo, toma exclusiva y liberación, recorrido con
+observaciones, firma electrónica y versionado explícito — con su propia base
+`workflow_bpm_db` y sus pantallas "Flujos", "Diseñar flujo", "Bandeja" y "Grupos". La
+definición vive en la versión del flujo, no en el flujo: un flujo en borrador se edita, y
+al publicarlo su recorrido queda bloqueado para que los trámites en curso no cambien de
+camino.
 
 | HU | Funcionalidad |
 |----|---------------|
@@ -77,30 +70,39 @@ para que los trámites en curso no cambien de camino.
 | HU-056…HU-058 | Transiciones: crear la acción que lleva de un paso a otro, corregirla y eliminarla (implementado) |
 | HU-059, HU-060 | Responsables por paso (usuario, rol o área validados contra ms-auth-catalogs) (implementado) |
 | HU-061 | Validación y publicación: paso inicial, pasos finales y ningún paso aislado (implementado) |
-| HU-062, HU-063, HU-066…HU-068 | Bandeja de tareas: iniciar trámite, ver la bandeja por responsable, aprobar, enviar, cancelar y devolver con observación (implementado) |
-| HU-064 | Filtrar y ordenar la bandeja por fecha, tipo documental y origen (pendiente: hoy solo se ordena por vencimiento) |
-| HU-065 | Abrir la tarea con metadatos y anexos del documento (parcial: muestra los metadatos y el recorrido, pero no los anexos) |
-| HU-069 | Responsable por paso: usuario, área o rol validados contra ms-auth-catalogs (implementado); grupos de trabajo pendientes porque no hay catálogo de grupos |
-| HU-070 | Tomar la tarea de forma exclusiva con 409 si otro ya la tomó (implementado); `liberar` pendiente |
-| HU-071 | Tenencia única del Original: una sola persona atiende la tarea tomada (implementado) |
-| HU-072…HU-074 | Tiempo límite del flujo y de cada paso, y semáforo de vencimiento (pendiente: las columnas existen, pero ningún endpoint las configura, así que la bandeja siempre dice «Sin plazo») |
-| HU-075…HU-077 | Estados que exigen firma, firma electrónica y consulta de firmas |
-| HU-078 | Crear una versión nueva en borrador copiando la publicada (`POST /flujos/{id}/versiones`) (implementado) |
-| HU-079 | Los trámites en curso conservan su versión: cada trámite guarda su `version_id` (implementado como regla del motor) |
-| HU-080 | Historial de versiones con fecha y autor (`GET /flujos/{id}/versiones`) y consulta de cualquier versión en solo lectura (`GET /flujos/{id}/grafo?version=N`) (implementado). Además, `DELETE /flujos/{id}/versiones/borrador` descarta el borrador abierto sobre un flujo publicado |
-| HU-083 | Consulta y aprobación desde el celular |
+| HU-062, HU-063, HU-066…HU-068 | Bandeja de tareas: iniciar trámite, ver la bandeja por responsable, aprobar, enviar, cancelar y devolver con observación |
+| HU-064 | Filtrar y ordenar la bandeja por fecha, tipo documental, origen, vencimiento y orden |
+| HU-065 | Abrir la tarea con metadatos y anexos del documento |
+| HU-069 | Responsable por paso: usuario, área, rol o grupo de trabajo, validados contra ms-auth-catalogs |
+| HU-070 | Tomar la tarea en exclusiva (409 si otro ya la tomó) y liberarla para otro responsable |
+| HU-071 | Tenencia única del Original: una sola persona atiende la tarea tomada |
+| HU-072…HU-074 | Tiempo límite del flujo y de cada paso; la bandeja calcula el semáforo de vencimiento al consultar |
+| HU-075…HU-077 | Estados que exigen firma, firma electrónica (con SHA-256 del documento) y consulta de firmas |
+| HU-078…HU-080 | Versionado: los trámites en curso conservan su versión y el historial de versiones es explícito |
+| HU-083 | Consulta y aprobación desde el celular: diseño adaptable y botones de acción con tamaño táctil |
 
 ### ms-audit-infra — Bitácora y requerimientos no funcionales (Go)
 
 Implementado en `servicio-auditoria/`: HU-043…HU-047, sobre la misma cola que ya
-alimentaban los otros dos servicios. Falta lo no funcional (copias de seguridad,
-métricas y pruebas de carga).
+alimentaban los otros servicios, y los requerimientos no funcionales (HU-081, HU-082,
+HU-084, HU-085).
 
 | HU | Funcionalidad |
 |----|---------------|
 | HU-043…HU-047 | Consumidor de la cola `audit.infrastructure`; bitácora inalterable encadenada por hash, historial por documento y filtros |
-| HU-081, HU-082 | Copias de seguridad programadas y restauración |
-| HU-084, HU-085 | Métricas de tiempos de respuesta y pruebas de carga con el límite de 2 s |
+| HU-081, HU-082 | Copias de seguridad programadas con `mysqldump` y retención por días; restauración que pide motivo y confirma otra persona |
+| HU-084, HU-085 | Percentiles p50/p95/p99 medidos por el propio servicio y pruebas de carga con el generador `cmd/carga`, frente al límite de 2 s |
+
+Salvedades: la copia cubre las bases del servidor MySQL configurado (cada servicio tiene
+el suyo) y no los objetos de MinIO, que se respaldan con la herramienta del
+almacenamiento; el generador de carga es un cliente HTTP en Go, no k6 ni JMeter.
+
+### Uso desde el celular (HU-083)
+
+El diseño ya era adaptable; ahora los filtros de la bandeja, el árbol del expediente y los
+formularios de plantillas y grupos también lo son, los campos suben a 16 px en pantalla
+estrecha (para que iOS no haga zoom al enfocar) y los modales ocupan el ancho completo con
+botones de 40 px de alto.
 
 ## 2. Funcionalidades nuevas propuestas
 

@@ -5,10 +5,13 @@ import Bandeja from './pages/Bandeja.jsx'
 import Configuracion from './pages/Configuracion.jsx'
 import Copias from './pages/Copias.jsx'
 import DisenadorFlujo from './pages/DisenadorFlujo.jsx'
+import Expediente from './pages/Expediente.jsx'
 import Flujos from './pages/Flujos.jsx'
 import Grupos from './pages/Grupos.jsx'
 import Login from './pages/Login.jsx'
+import Operacion from './pages/Operacion.jsx'
 import Panel from './pages/Panel.jsx'
+import Plantillas from './pages/Plantillas.jsx'
 import Radicacion from './pages/Radicacion.jsx'
 import Roles from './pages/Roles.jsx'
 import Usuarios from './pages/Usuarios.jsx'
@@ -49,11 +52,14 @@ function App() {
       <Route path="/app" element={<RequiereSesion><Layout /></RequiereSesion>}>
         <Route index element={<Panel />} />
         <Route path="radicacion" element={<RequierePermiso permiso="radicados:consultar"><Radicacion /></RequierePermiso>} />
+        <Route path="expediente" element={<RequierePermiso permisos={['expediente:ver', 'expediente:administrar']}><Expediente /></RequierePermiso>} />
+        <Route path="plantillas" element={<RequierePermiso permisos={['plantillas:usar', 'plantillas:administrar']}><Plantillas /></RequierePermiso>} />
         <Route path="copias" element={<Copias />} />
         <Route path="bandeja" element={<RequierePermiso permiso="flujo:aprobar"><Bandeja /></RequierePermiso>} />
         <Route path="flujos" element={<RequierePermiso permiso="flujos:administrar"><Flujos /></RequierePermiso>} />
         <Route path="flujos/:id" element={<RequierePermiso permiso="flujos:administrar"><DisenadorFlujo /></RequierePermiso>} />
         <Route path="grupos" element={<RequierePermiso permisos={['flujo:aprobar', 'flujos:administrar']}><Grupos /></RequierePermiso>} />
+        <Route path="operacion" element={<RequierePermiso permisos={['respaldos:administrar', 'rendimiento:consultar']}><Operacion /></RequierePermiso>} />
         <Route path="usuarios" element={<RequierePermiso permiso="usuarios:consultar"><Usuarios /></RequierePermiso>} />
         <Route path="roles" element={<RequierePermiso permiso="roles:consultar"><Roles /></RequierePermiso>} />
         <Route path="configuracion" element={<RequierePermiso permiso="catalogos:consultar"><Configuracion /></RequierePermiso>} />

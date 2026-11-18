@@ -1216,6 +1216,51 @@ textarea:-webkit-autofill:focus {
 .lista-simple li > .muted { flex: 1; min-width: 0; }
 
 /* ============================================================
+   Árbol del expediente, casillas y avisos
+   ============================================================ */
+
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; }
+.check input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--azul); flex-shrink: 0; }
+.lista-checks { display: grid; gap: 6px; }
+
+.arbol { list-style: none; margin: 0; padding: 6px; display: grid; gap: 2px; }
+.arbol ul { list-style: none; margin: 0; padding: 0; }
+.arbol-nodo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texto);
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+}
+.arbol-nodo:hover { background: var(--papel-3); }
+.arbol-nodo.activo { background: var(--azul-tenue); color: var(--azul); font-weight: 600; }
+.arbol-nodo > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fila-nueva { background: color-mix(in srgb, var(--azul) 6%, transparent); }
+
+.aviso-ok {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--exito) 35%, transparent);
+  border-radius: var(--r-sm);
+  background: var(--exito-tenue);
+  color: var(--exito);
+  font-size: 0.86rem;
+}
+
+/* ============================================================
    Adaptación a pantallas estrechas
    ============================================================ */
 
@@ -1237,6 +1282,8 @@ textarea:-webkit-autofill:focus {
   .sidebar-user { margin-top: 12px; }
 }
 
+/* HU-083: aprobar desde el celular. Los campos suben a 16 px para que iOS no haga
+   zoom al enfocarlos, los modales ocupan el ancho disponible y los botones se reparten. */
 @media (max-width: 760px) {
   .content { padding: 20px 16px 56px; }
   .topbar { padding: 10px 16px; }
@@ -1244,4 +1291,27 @@ textarea:-webkit-autofill:focus {
   .page-actions { width: 100%; }
   .page-actions .btn { flex: 1; }
   .card-head { flex-direction: column; align-items: flex-start; }
+
+  input[type='text'], input[type='email'], input[type='date'], input[type='password'],
+  input[type='number'], input[type='search'], select, textarea { font-size: 16px; }
+
+  .toolbar > select,
+  .toolbar > input[type='date'] { flex: 1 1 150px; width: auto; min-width: 0; }
+  .toolbar .btn { flex: 1 1 auto; }
+
+  .modal-backdrop { align-items: end; padding: 0; }
+  .modal {
+    width: 100% !important;
+    max-height: 92vh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+  }
+  .modal-foot { flex-wrap: wrap; }
+  .modal-foot .btn { flex: 1 1 auto; }
+
+  /* Las tablas siguen siendo tablas, pero se deslizan en horizontal en vez de
+     aplastar las columnas hasta hacerlas ilegibles. */
+  .table-wrap { -webkit-overflow-scrolling: touch; }
+  .td-actions { flex-wrap: wrap; }
+  .btn, .btn.sm { min-height: 40px; }
+  .sidebar-salir { min-height: 44px; }
 }

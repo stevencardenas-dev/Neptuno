@@ -9,8 +9,9 @@ test.describe('Permisos y sesión (HU-013)', () => {
     const auditor = await crearUsuario(request, admin, ['Auditor'])
 
     await iniciarSesion(page, { correo: auditor.correo, clave: CLAVE_PRUEBA })
-    // El Auditor ve la bitácora y las copias que recibe: el resto del menú no le corresponde.
-    await expect(enlacesDelMenu(page)).toHaveText(['Panel', 'Copias recibidas', 'Bitácora'])
+    // El Auditor consulta el expediente, la bitácora y las copias que recibe; no
+    // administra usuarios ni diseña flujos.
+    await expect(enlacesDelMenu(page)).toHaveText(['Panel', 'Expediente', 'Copias recibidas', 'Bitácora', 'Operación'])
     await expect(page.getByText('Tu rol todavía no tiene permisos')).toBeVisible()
 
     // Escribir la URL a mano tampoco muestra la vista.
@@ -43,7 +44,9 @@ test.describe('Permisos y sesión (HU-013)', () => {
     const usuario = await crearUsuario(request, admin, ['Radicador'])
 
     await iniciarSesion(page, { correo: usuario.correo, clave: CLAVE_PRUEBA })
-    await expect(enlacesDelMenu(page)).toHaveText(['Panel', 'Radicados', 'Copias recibidas', 'Parámetros'])
+    await expect(enlacesDelMenu(page)).toHaveText([
+      'Panel', 'Radicados', 'Expediente', 'Plantillas', 'Copias recibidas', 'Parámetros',
+    ])
 
     // El iat del JWT tiene precisión de segundos: el cambio debe ser posterior al login.
     await page.waitForTimeout(1100)
@@ -51,7 +54,7 @@ test.describe('Permisos y sesión (HU-013)', () => {
 
     // La siguiente petición recibe 401, el cliente renueva y recarga la sesión.
     await page.reload()
-    await expect(enlacesDelMenu(page)).toHaveText(['Panel', 'Copias recibidas', 'Bitácora'])
+    await expect(enlacesDelMenu(page)).toHaveText(['Panel', 'Expediente', 'Copias recibidas', 'Bitácora', 'Operación'])
     await expect(page).toHaveURL(/\/app$/)
   })
 })

@@ -61,7 +61,7 @@ implementan, con la prueba automatizada que la verifica.
 - **HU-016/HU-015/HU-022:** los catálogos se desactivan, no se borran, para no
   invalidar documentos históricos; un área con usuarios asignados no se desactiva.
 - **HU-024:** `radicados:radicar-recibido` se siembra únicamente en el rol Radicador
-  (el Administrador recibe los otros 24 permisos), para que ms-documental pueda
+  (el Administrador recibe los otros 33 permisos), para que ms-documental pueda
   exigir que solo los Radicadores radiquen documentos de origen Recibido. La
   migración `V2__hu024_permiso_recibido_exclusivo.sql` corrige las bases ya sembradas.
 - **Bitácora:** cada acción publica un evento en RabbitMQ (`neptuno.eventos` →

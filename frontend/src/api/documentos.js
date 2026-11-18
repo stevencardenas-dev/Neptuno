@@ -88,7 +88,121 @@ function base64(archivo) {
   })
 }
 
-/** HU-041: enviar una copia informativa del radicado y ver a quién se envió. */
+/**
+ * Expediente central (HU-030…HU-034): árbol de carpetas por área, subcarpetas,
+ * visibilidad por rol o área y documentos No radicables.
+ */
+
+/** HU-032, HU-033: el árbol que la sesión puede ver. */
+export function arbolExpediente() {
+  return peticion('/expediente/arbol', { base: BASE_DOCUMENTOS })
+}
+
+/** HU-030, HU-031: crear la carpeta raíz de un área o una subcarpeta. */
+export function crearCarpeta(datos) {
+  return peticion('/expediente/carpetas', { metodo: 'POST', cuerpo: datos, base: BASE_DOCUMENTOS })
+}
+
+/** HU-031: renombrar o cambiar el tipo de expediente. */
+export function editarCarpeta(id, datos) {
+  return peticion(`/expediente/carpetas/${id}`, { metodo: 'PUT', cuerpo: datos, base: BASE_DOCUMENTOS })
+}
+
+/** HU-030: desactivar una carpeta vacía. */
+export function desactivarCarpeta(id) {
+  return peticion(`/expediente/carpetas/${id}`, { metodo: 'DELETE', base: BASE_DOCUMENTOS })
+}
+
+/** HU-033: accesos heredables por rol o área. */
+export function accesosDeCarpeta(id) {
+  return peticion(`/expediente/carpetas/${id}/accesos`, { base: BASE_DOCUMENTOS })
+}
+
+export function reemplazarAccesosDeCarpeta(id, accesos) {
+  return peticion(`/expediente/carpetas/${id}/accesos`, {
+    metodo: 'PUT', cuerpo: { accesos }, base: BASE_DOCUMENTOS,
+  })
+}
+
+/** HU-034: documentos No radicables de una carpeta. */
+export function documentosDeCarpeta(id) {
+  return peticion(`/expediente/carpetas/${id}/documentos`, { base: BASE_DOCUMENTOS })
+}
+
+export function crearDocumentoDeExpediente(carpetaId, datos) {
+  return peticion(`/expediente/carpetas/${carpetaId}/documentos`, {
+    metodo: 'POST', cuerpo: datos, base: BASE_DOCUMENTOS,
+  })
+}
+
+/** HU-034: archivos de un documento No radicable. */
+export function anexosDeDocumentoExpediente(documentoId) {
+  return peticion(`/documentos-expediente/${documentoId}/anexos`, { base: BASE_DOCUMENTOS })
+}
+
+export function cargarAnexoDeExpediente(documentoId, archivo) {
+  return peticion(`/documentos-expediente/${documentoId}/anexos`, {
+    metodo: 'POST',
+    base: BASE_DOCUMENTOS,
+    crudo: archivo,
+    cabeceras: {
+      'Content-Type': archivo.type || 'application/octet-stream',
+      'X-Nombre-Archivo': encodeURIComponent(archivo.name),
+    },
+  })
+}
+
+/**
+ * Plantillas DOCX (HU-035…HU-038). El archivo viaja como cuerpo binario y los
+ * metadatos en cabeceras `X-*`, igual que los anexos.
+ */
+export function listarPlantillas() {
+  return peticion('/plantillas', { base: BASE_DOCUMENTOS })
+}
+
+export function obtenerPlantilla(id) {
+  return peticion(`/plantillas/${id}`, { base: BASE_DOCUMENTOS })
+}
+
+/** HU-035: subir el DOCX; el servicio detecta sus marcadores `{{campo}}`. */
+export function subirPlantilla(archivo, metadatos = {}) {
+  const cabeceras = {
+    'Content-Type': archivo.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'X-Nombre-Archivo': encodeURIComponent(archivo.name),
+  }
+  if (metadatos.nombre) cabeceras['X-Nombre-Plantilla'] = encodeURIComponent(metadatos.nombre)
+  if (metadatos.descripcion) cabeceras['X-Descripcion-Plantilla'] = encodeURIComponent(metadatos.descripcion)
+  if (metadatos.origenes?.length) cabeceras['X-Origenes'] = metadatos.origenes.join(',')
+  return peticion('/plantillas', { metodo: 'POST', base: BASE_DOCUMENTOS, crudo: archivo, cabeceras })
+}
+
+/** HU-035: nombre, descripción y estado. */
+export function editarPlantilla(id, datos) {
+  return peticion(`/plantillas/${id}`, { metodo: 'PUT', cuerpo: datos, base: BASE_DOCUMENTOS })
+}
+
+/** HU-036: variables y el campo del radicado que precarga cada una. */
+export function reemplazarVariablesDePlantilla(id, variables) {
+  return peticion(`/plantillas/${id}/variables`, { metodo: 'PUT', cuerpo: { variables }, base: BASE_DOCUMENTOS })
+}
+
+/** HU-036: orígenes Interno / Externo con los que se puede usar. */
+export function reemplazarOrigenesDePlantilla(id, origenes) {
+  return peticion(`/plantillas/${id}/origenes`, { metodo: 'PUT', cuerpo: { origenes }, base: BASE_DOCUMENTOS })
+}
+
+/** HU-037, HU-038: generar DOCX y PDF y anexarlos al radicado. */
+export function generarDesdePlantilla(radicadoId, datos) {
+  return peticion(`/radicados/${radicadoId}/documentos-generados`, {
+    metodo: 'POST', cuerpo: datos, base: BASE_DOCUMENTOS,
+  })
+}
+
+export function documentosGenerados(radicadoId) {
+  return peticion(`/radicados/${radicadoId}/documentos-generados`, { base: BASE_DOCUMENTOS })
+}
+
+/** Copias informativas (HU-041, HU-042). */
 export function enviarCopia(radicadoId, datos) {
   return peticion(`/radicados/${radicadoId}/copias`, { metodo: 'POST', cuerpo: datos, base: BASE_DOCUMENTOS })
 }

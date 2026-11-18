@@ -13,14 +13,15 @@ está en [`DESPLIEGUE.md`](DESPLIEGUE.md).
 |---|---|
 | Cuenta | Plan gratuito de AWS, **sin tarjeta**: el plan rechaza de plano cualquier recurso fuera de lo elegible, así que el costo es **USD $0** |
 | Instancia | Una sola EC2 (`m7i-flex.large`, 2 vCPU, 8 GB, 20 GB gp3) en `us-east-2` |
-| Contenedores | 10 (frontend + 4 microservicios + 4 MySQL + RabbitMQ) con Podman |
+| Contenedores | 11 (frontend + 4 microservicios + 4 MySQL + RabbitMQ + MinIO) con Podman |
 | Red | Privada de contenedores; solo el frontend publica un puerto al exterior |
 | Publicación | **CloudFront** con HTTPS y una **IP elástica** en la instancia: la dirección no cambia al apagar y encender |
 | Créditos | USD $120 disponibles, **gasto acumulado $0** |
 
-Los servicios internos (8081, 8082, 8083, 8084 y 15672) escuchan en
-`127.0.0.1`: el exterior solo ve el puerto 8080, y el tráfico entre servicios va
-por la red interna de Podman.
+Los servicios internos (8081, 8082, 8083, 8084, 15672 y la consola de MinIO en
+9001) escuchan en `127.0.0.1`: el exterior solo ve el puerto 8080, y el tráfico
+entre servicios va por la red interna de Podman. Los anexos de los radicados se
+guardan en un volumen de MinIO; el API de objetos (9000) no se publica.
 
 ## 2. Encender y apagar
 
@@ -51,6 +52,10 @@ para encenderla o apagarla sin instalar nada ni tener cuenta de AWS.
   usuarios, incluidos los del equipo, y no se pueden relajar desde la cuenta.
 - Cada hecho de auditoría queda **encadenado por su huella**; la integridad de la
   cadena se comprueba desde la propia pantalla de bitácora.
+- Los **anexos** se guardan en MinIO con su huella SHA-256 y su tipo validado; la
+  eliminación es lógica (queda quién y por qué) y el objeto nunca se publica.
+- El **flujo de trabajo** consulta el radicado por una API interna que exige la
+  clave entre servicios; esa ruta no acepta tokens de usuario.
 
 ## 4. Flujo de despliegue
 

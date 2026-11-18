@@ -39,7 +39,9 @@ test.describe('Autenticación (HU-001, HU-002)', () => {
     // El menú cambió con el rediseño: además de administración aparecen radicación,
     // flujo de trabajo y auditoría, y solo se ofrece lo que el rol puede hacer.
     await expect(enlacesDelMenu(page)).toHaveText([
-      'Panel', 'Radicados', 'Copias recibidas', 'Bandeja', 'Flujos', 'Grupos', 'Bitácora', 'Usuarios', 'Roles y permisos', 'Parámetros',
+      'Panel', 'Radicados', 'Expediente', 'Plantillas', 'Copias recibidas',
+      'Bandeja', 'Flujos', 'Grupos', 'Bitácora', 'Operación',
+      'Usuarios', 'Roles y permisos', 'Parámetros',
     ])
 
     // Las 5 métricas van en una sola fila en escritorio y no se ven como texto subrayado.
@@ -52,7 +54,7 @@ test.describe('Autenticación (HU-001, HU-002)', () => {
 
   test('las rutas que no existen vuelven al panel', async ({ page }) => {
     await iniciarSesion(page)
-    for (const ruta of ['/app/expediente', '/no-existe']) {
+    for (const ruta of ['/app/ruta-inventada', '/no-existe']) {
       await page.goto(ruta)
       await expect(page).toHaveURL(/\/app$/)
     }

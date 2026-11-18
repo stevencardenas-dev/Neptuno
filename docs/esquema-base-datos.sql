@@ -2,8 +2,9 @@
 -- Neptuno · Esquema de base de datos de las historias pendientes
 -- =============================================================================
 --
--- Cubre las 68 historias de usuario que aún no están implementadas, repartidas
--- según Neptuno_Proyecto.docx (una base MySQL 8 por microservicio):
+-- Esquema de referencia de las historias repartidas según Neptuno_Proyecto.docx
+-- (una base MySQL 8 por microservicio). Las migraciones que aplican cada servicio
+-- al arrancar son la fuente de verdad; este archivo documenta las tablas juntas.
 --
 --   document_management_db  ms-document-management  HU-017…HU-021, HU-023…HU-042
 --   workflow_bpm_db         ms-workflow-bpm         HU-048…HU-080, HU-083
@@ -645,7 +646,7 @@ create table prueba_carga (
 --         actual; no se guarda para que nunca quede desactualizado.
 -- HU-083  Uso desde el celular: requisito del frontend, sin tablas.
 --
--- Permisos nuevos que habría que sembrar en auth_catalogs_db.permiso para proteger
--- los endpoints de estas historias (ver la hoja Product Backlog del Excel):
+-- Permisos sembrados en auth_catalogs_db.permiso para proteger los endpoints de
+-- estas historias (CatalogoPermisos y migraciones V5…V9 de servicio-usuarios):
 --   radicados:consultar, expediente:administrar, expediente:cargar,
 --   plantillas:administrar, plantillas:usar, flujos:administrar, respaldos:administrar
