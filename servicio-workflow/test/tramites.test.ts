@@ -126,6 +126,9 @@ function escenario(opciones: { radicado?: Partial<ResumenRadicado>; atiende?: st
     async radicado() {
       return radicado;
     },
+    async anexos() {
+      return [];
+    },
     async marcarEstado(_id, estado) {
       if (opciones.falloAviso) throw new Error('documentos no responde');
       avisos.push(estado);

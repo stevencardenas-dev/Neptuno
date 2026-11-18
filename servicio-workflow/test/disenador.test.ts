@@ -17,6 +17,8 @@ const paso = (n: number, tipo: Paso['tipo'], nombre = `Paso ${n}`): Paso => ({
   tipo,
   posicionX: n * 220,
   posicionY: 140,
+  slaMinutos: null,
+  requiereFirma: false,
   responsables: [],
 });
 
