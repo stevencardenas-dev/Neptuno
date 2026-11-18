@@ -67,6 +67,25 @@ export class DisenadorControlador {
     return this.servicio.marcarPaso(id, estadoId, cuerpo, actor);
   }
 
+  /** HU-072: duración máxima del trámite completo. */
+  @Put('sla-global')
+  @RequierePermiso('flujos:administrar')
+  slaGlobal(@Param('id') id: string, @Body() cuerpo: unknown, @ActorActual() actor: Actor) {
+    return this.servicio.actualizarSlaGlobal(id, cuerpo, actor);
+  }
+
+  /** HU-073, HU-076: tiempo límite y firma obligatoria del paso. */
+  @Patch('estados/:estadoId/operacion')
+  @RequierePermiso('flujos:administrar')
+  operacionPaso(
+    @Param('id') id: string,
+    @Param('estadoId') estadoId: string,
+    @Body() cuerpo: unknown,
+    @ActorActual() actor: Actor,
+  ) {
+    return this.servicio.actualizarOperacionPaso(id, estadoId, cuerpo, actor);
+  }
+
   /** HU-054: retirar un paso. */
   @Delete('estados/:estadoId')
   @RequierePermiso('flujos:administrar')

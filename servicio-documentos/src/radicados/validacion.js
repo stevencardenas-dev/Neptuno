@@ -21,6 +21,7 @@ const campos = {
   fechaDocumento: fecha,
   folios: z.number().int('Los folios deben ser un entero').min(1, 'Los folios deben ser al menos 1').max(100000),
   entidadId: uuid('La entidad').nullable().optional(),
+  carpetaId: uuid('La carpeta').nullable().optional(),
   comentarios: z.string().trim().max(2000, 'Los comentarios no pueden superar 2000 caracteres').nullable().optional(),
 };
 
@@ -38,7 +39,7 @@ export const esquemaCrear = z
 // HU-021: el código y el origen no se editan; `version` protege contra ediciones simultáneas.
 export const esquemaEditar = z
   .object({
-    ...Object.fromEntries(Object.entries(campos).map(([k, v]) => [k, k === 'entidadId' || k === 'comentarios' || k === 'areaId' ? v : v.optional()])),
+    ...Object.fromEntries(Object.entries(campos).map(([k, v]) => [k, ['entidadId', 'comentarios', 'areaId', 'carpetaId'].includes(k) ? v : v.optional()])),
     clase: z.enum(['ORIGINAL', 'COPIA']).optional(),
     version: z.number({ required_error: 'La versión es obligatoria' }).int().min(0),
   })

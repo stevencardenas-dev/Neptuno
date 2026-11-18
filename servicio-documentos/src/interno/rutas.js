@@ -11,7 +11,7 @@ const ESTADOS = ['EN_TRAMITE', 'FINALIZADO', 'RADICADO', 'ANULADO'];
  * Se autentica con `X-Servicio-Clave`, no con el token del usuario: quien actúa es el
  * flujo, no la persona que en ese momento tiene la tarea.
  */
-export function crearRutasInternas(servicio) {
+export function crearRutasInternas(servicio, repoAnexos = null) {
   const r = Router();
 
   r.get('/radicados/:id', async (req, res) => {
@@ -28,6 +28,18 @@ export function crearRutasInternas(servicio) {
       radicadoPor: radicado.radicadoPor,
     });
   });
+
+  /** HU-065: el flujo muestra los anexos del radicado junto a sus metadatos. */
+  if (repoAnexos) {
+    r.get('/radicados/:id/anexos', async (req, res) => {
+      if (!UUID.test(req.params.id)) throw noEncontrado('El radicado no existe.');
+      await servicio.obtener(req.params.id);
+      const anexos = await repoAnexos.listar(req.params.id);
+      res.json(anexos.map(({ id, nombreOriginal, extension, tipoMime, tamanoBytes, procedencia, cargadoEn }) => ({
+        id, nombreOriginal, extension, tipoMime, tamanoBytes, procedencia, cargadoEn,
+      })));
+    });
+  }
 
   r.patch('/radicados/:id/estado', async (req, res) => {
     if (!UUID.test(req.params.id)) throw noEncontrado('El radicado no existe.');

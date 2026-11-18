@@ -12,6 +12,7 @@ function aAnexo(f) {
   return {
     id: aUuid(f.id),
     radicadoId: aUuid(f.radicado_id),
+    documentoExpedienteId: aUuid(f.documento_expediente_id),
     nombreOriginal: f.nombre_original,
     extension: f.extension,
     tipoMime: f.tipo_mime,
@@ -62,16 +63,17 @@ export function crearRepositorioAnexos(pool) {
       return enTransaccion(async (cx) => {
         for (const [indice, datos] of anexos.entries()) {
           await cx.execute(
-            `insert into anexo (id, radicado_id, nombre_original, extension, tipo_mime, tamano_bytes,
-               objeto_clave, hash_sha256, procedencia, cargado_por, cargado_en)
-             values (?, ?, ?, ?, ?, ?, ?, ?, 'CARGA', ?, ?)`,
+            `insert into anexo (id, radicado_id, documento_expediente_id, nombre_original, extension, tipo_mime,
+               tamano_bytes, objeto_clave, hash_sha256, procedencia, cargado_por, cargado_en)
+             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-              aBuffer(ids[indice]), aBuffer(datos.radicadoId), datos.nombreOriginal, datos.extension, datos.tipoMime,
-              datos.tamanoBytes, datos.objetoClave, datos.hashSha256, aBuffer(actor.id), new Date(),
+              aBuffer(ids[indice]), aBuffer(datos.radicadoId ?? null), aBuffer(datos.documentoExpedienteId ?? null),
+              datos.nombreOriginal, datos.extension, datos.tipoMime, datos.tamanoBytes, datos.objetoClave,
+              datos.hashSha256, datos.procedencia ?? 'CARGA', aBuffer(actor.id), new Date(),
             ],
           );
           await registrarEvento(cx, {
-            tipo: 'anexo.cargado',
+            tipo: datos.procedencia === 'PLANTILLA' ? 'documento.generado' : 'anexo.cargado',
             anexoId: ids[indice],
             actor,
             detalle: `Se cargó el anexo ${datos.nombreOriginal} (${datos.tamanoBytes} bytes).`,
@@ -92,6 +94,26 @@ export function crearRepositorioAnexos(pool) {
         [aBuffer(radicadoId)],
       );
       return filas.map(aAnexo);
+    },
+
+    /** HU-034: anexos de un documento No radicable del expediente. */
+    async listarDeDocumento(documentoExpedienteId) {
+      const [filas] = await pool.execute(
+        `select * from anexo
+          where documento_expediente_id = ? and eliminado_en is null
+          order by cargado_en asc`,
+        [aBuffer(documentoExpedienteId)],
+      );
+      return filas.map(aAnexo);
+    },
+
+    async documentoExpedienteExiste(id) {
+      const [filas] = await pool.execute(
+        `select 1 from documento_expediente d join carpeta c on c.id = d.carpeta_id
+          where d.id = ? and c.estado = 'ACTIVO'`,
+        [aBuffer(id)],
+      );
+      return filas.length > 0;
     },
 
     async obtener(id) {

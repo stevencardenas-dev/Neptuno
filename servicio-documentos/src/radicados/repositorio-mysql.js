@@ -45,6 +45,7 @@ const COLUMNAS_EDITABLES = {
   fechaDocumento: ['fecha_documento', (v) => v],
   folios: ['folios', (v) => v],
   entidadId: ['entidad_id', aBuffer],
+  carpetaId: ['carpeta_id', aBuffer],
   comentarios: ['comentarios', (v) => v],
   actualizadoPor: ['actualizado_por', aBuffer],
   actualizadoEn: ['actualizado_en', (v) => v],
@@ -92,12 +93,13 @@ export function crearRepositorioMysql(pool) {
         const id = randomUUID();
         await cx.execute(
           `insert into radicado (id, codigo, origen, clase, tipo_documental_id, area_id, asunto, remitente, destinatario,
-             fecha_documento, folios, entidad_id, comentarios, estado, radicado_por, radicado_en)
-           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             fecha_documento, folios, entidad_id, carpeta_id, comentarios, estado, radicado_por, radicado_en)
+           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             aBuffer(id), formatearCodigo(fecha, digito, Number(n)), datos.origen, datos.clase, aBuffer(datos.tipoDocumentalId),
             aBuffer(datos.areaId), datos.asunto, datos.remitente, datos.destinatario, datos.fechaDocumento, datos.folios,
-            aBuffer(datos.entidadId), datos.comentarios ?? null, datos.estado, aBuffer(datos.radicadoPor), datos.radicadoEn,
+            aBuffer(datos.entidadId), aBuffer(datos.carpetaId), datos.comentarios ?? null, datos.estado,
+            aBuffer(datos.radicadoPor), datos.radicadoEn,
           ],
         );
         const radicado = await leer(cx, id);

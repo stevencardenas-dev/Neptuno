@@ -64,3 +64,10 @@ test('si la base falla se limpian los objetos ya subidos', async () => {
   await assert.rejects(servicio.cargarLote(ACTOR, RADICADO, [PDF]), /base falló/);
   assert.equal(eliminados.length, 1);
 });
+
+test('un documento del expediente también recibe anexos', async () => {
+  const { servicio, insertados } = escenario();
+  await servicio.cargarEnDocumento(ACTOR, uuid(7), PDF);
+  assert.equal(insertados[0].documentoExpedienteId, uuid(7));
+  assert.equal(insertados[0].radicadoId, undefined);
+});

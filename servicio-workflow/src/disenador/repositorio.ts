@@ -58,6 +58,8 @@ interface FilaPaso extends RowDataPacket {
   tipo: TipoEstado;
   posicionX: number;
   posicionY: number;
+  slaMinutos: number | null;
+  requiereFirma: boolean | number;
 }
 
 interface FilaTransicion extends RowDataPacket {
@@ -133,6 +135,7 @@ export class RepositorioDisenador {
       editable: version.estado === 'BORRADOR',
       pasos: pasos.map((paso) => ({
         ...paso,
+        requiereFirma: Boolean(paso.requiereFirma),
         responsables: responsables.filter((r) => r.estadoId === paso.id).map(({ estadoId: _e, ...resto }) => resto),
       })),
       transiciones,
@@ -606,6 +609,59 @@ export class RepositorioDisenador {
     return publicada!;
   }
 
+  /** HU-072: tiempo máximo del trámite completo, sobre la versión en edición. */
+  async actualizarSlaGlobal(flujoId: string, slaGlobalMinutos: number | null, actor: Autor): Promise<void> {
+    await enTransaccion(this.pool, async (cx) => {
+      const version = await this.versionEditable(cx, flujoId, actor);
+      await cx.query(
+        'update flujo_version set sla_global_minutos = ? where id = uuid_to_bin(?)',
+        [slaGlobalMinutos, version.id],
+      );
+      await registrarEvento(cx, {
+        tipo: 'flujo.sla-global-actualizado',
+        entidad: 'flujo',
+        entidadId: flujoId,
+        actor,
+        detalle: { flujoId, versionId: version.id, slaGlobalMinutos },
+      });
+    });
+  }
+
+  /** HU-073, HU-076: tiempo límite y firma obligatoria de un paso. */
+  async actualizarOperacionPaso(
+    flujoId: string,
+    pasoId: string,
+    datos: { slaMinutos?: number | null; requiereFirma?: boolean },
+    actor: Autor,
+  ): Promise<void> {
+    await enTransaccion(this.pool, async (cx) => {
+      const version = await this.versionEditable(cx, flujoId, actor);
+      await this.pasoDeLaVersion(cx, version.id, pasoId);
+      const sets: string[] = [];
+      const valores: unknown[] = [];
+      if (datos.slaMinutos !== undefined) {
+        sets.push('sla_minutos = ?');
+        valores.push(datos.slaMinutos);
+      }
+      if (datos.requiereFirma !== undefined) {
+        sets.push('requiere_firma = ?');
+        valores.push(datos.requiereFirma);
+      }
+      if (!sets.length) return;
+      await cx.query(
+        `update estado_flujo set ${sets.join(', ')} where id = uuid_to_bin(?)`,
+        [...valores, pasoId],
+      );
+      await registrarEvento(cx, {
+        tipo: 'flujo.paso-operacion-actualizada',
+        entidad: 'flujo',
+        entidadId: flujoId,
+        actor,
+        detalle: { flujoId, versionId: version.id, estadoId: pasoId, ...datos },
+      });
+    });
+  }
+
   /** HU-069: el grupo de trabajo existe (los grupos viven en este mismo servicio). */
   async grupoExiste(id: string): Promise<boolean> {
     const [filas] = await this.pool.query<RowDataPacket[]>(
@@ -762,7 +818,8 @@ export class RepositorioDisenador {
   private async pasoDeLaVersion(cx: PoolConnection, versionId: string, pasoId: string): Promise<FilaPaso> {
     const [filas] = await cx.query<FilaPaso[]>(
       `select bin_to_uuid(e.id) as id, e.nombre, e.descripcion, e.tipo,
-              e.posicion_x as posicionX, e.posicion_y as posicionY
+              e.posicion_x as posicionX, e.posicion_y as posicionY,
+              e.sla_minutos as slaMinutos, e.requiere_firma as requiereFirma
          from estado_flujo e
         where e.id = uuid_to_bin(?) and e.version_id = uuid_to_bin(?)`,
       [pasoId, versionId],
@@ -833,13 +890,14 @@ export class RepositorioDisenador {
   private async pasos(versionId: string): Promise<Omit<Paso, 'responsables'>[]> {
     const [filas] = await this.pool.query<FilaPaso[]>(
       `select bin_to_uuid(e.id) as id, e.nombre, e.descripcion, e.tipo,
-              e.posicion_x as posicionX, e.posicion_y as posicionY
+              e.posicion_x as posicionX, e.posicion_y as posicionY,
+              e.sla_minutos as slaMinutos, e.requiere_firma as requiereFirma
          from estado_flujo e
         where e.version_id = uuid_to_bin(?)
         order by e.posicion_x asc, e.posicion_y asc, e.nombre asc`,
       [versionId],
     );
-    return filas;
+    return filas.map((fila) => ({ ...fila, requiereFirma: Boolean(fila.requiereFirma) }));
   }
 
   private async transiciones(versionId: string): Promise<Transicion[]> {

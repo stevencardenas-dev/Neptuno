@@ -34,6 +34,14 @@ export function crearAlmacen({ endPoint, port, useSSL, accessKey, secretKey, buc
       await bucketListo();
       return cliente.getObject(bucket, clave);
     },
+    /** Lee un objeto completo (plantillas DOCX, HU-035). */
+    async leer(clave) {
+      await bucketListo();
+      const flujo = await cliente.getObject(bucket, clave);
+      const partes = [];
+      for await (const parte of flujo) partes.push(parte);
+      return Buffer.concat(partes);
+    },
     async comprobar() {
       await bucketListo();
     },

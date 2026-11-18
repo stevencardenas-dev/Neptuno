@@ -6,10 +6,14 @@ import { crearRutasRadicados } from './radicados/rutas.js';
 import { crearServicioAnexos } from './anexos/servicio.js';
 import { crearRutasAnexos } from './anexos/rutas.js';
 import { crearRutasInternas } from './interno/rutas.js';
+import { crearServicioExpediente } from './expediente/servicio.js';
+import { crearRutasExpediente } from './expediente/rutas.js';
+import { crearServicioPlantillas } from './plantillas/servicio.js';
+import { crearRutasPlantillas } from './plantillas/rutas.js';
 import { crearServicioCopias } from './copias/servicio.js';
 import { crearRutasCopias } from './copias/rutas.js';
 
-export function crearApp({ config, repo, repoAnexos, repoCopias, almacen, catalogos, workflow, comprobarSalud = async () => {}, ahora }) {
+export function crearApp({ config, repo, repoAnexos, repoExpediente, repoPlantillas, repoCopias, almacen, catalogos, workflow, comprobarSalud = async () => {}, ahora }) {
   const app = express();
   app.disable('x-powered-by');
   // La carga múltiple de anexos (HU-027) trae varios archivos en base64 y necesita un
@@ -26,18 +30,22 @@ export function crearApp({ config, repo, repoAnexos, repoCopias, almacen, catalo
     }
   });
 
-  const servicio = crearServicioRadicados({ repo, catalogos, workflow, ahora });
+  const expediente = repoExpediente ? crearServicioExpediente({ repo: repoExpediente, catalogos }) : null;
+  const servicio = crearServicioRadicados({ repo, catalogos, workflow, expediente, ahora });
 
   // Las rutas internas se montan antes que la API con JWT: no usan token de usuario.
   if (config.claveServicios) {
-    app.use('/api/documentos/interno', exigirClaveServicios(config.claveServicios), crearRutasInternas(servicio));
+    app.use('/api/documentos/interno', exigirClaveServicios(config.claveServicios), crearRutasInternas(servicio, repoAnexos));
   }
 
   const api = express.Router();
   api.use(autenticar(config.jwt));
   api.use('/radicados', crearRutasRadicados(servicio));
-  if (repoAnexos && almacen) {
-    api.use(crearRutasAnexos(crearServicioAnexos({ repo: repoAnexos, almacen })));
+  if (expediente) api.use('/expediente', crearRutasExpediente(expediente));
+  const servicioAnexos = repoAnexos && almacen ? crearServicioAnexos({ repo: repoAnexos, almacen }) : null;
+  if (servicioAnexos) api.use(crearRutasAnexos(servicioAnexos, expediente));
+  if (repoPlantillas && servicioAnexos) {
+    api.use(crearRutasPlantillas(crearServicioPlantillas({ repo: repoPlantillas, anexos: servicioAnexos, almacen })));
   }
   if (repoCopias) {
     api.use(crearRutasCopias(crearServicioCopias({ repo: repoCopias, catalogos })));

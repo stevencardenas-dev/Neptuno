@@ -29,7 +29,7 @@ function escenario(tarea: Record<string, unknown> | null) {
       llamadas.liberar++;
     },
     async detalle() {
-      return { id: TRAMITE, tareaAbierta: { responsables: [], acciones: [], asignadaA: null } };
+      return { id: TRAMITE, firmas: [], tareaAbierta: { responsables: [], acciones: [], asignadaA: null } };
     },
   };
   return { servicio: new ServicioTramites(repo as any, {} as any, {} as any), llamadas };

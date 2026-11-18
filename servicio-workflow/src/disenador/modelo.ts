@@ -112,6 +112,25 @@ export const esquemaTransicionEditar = z
     'No hay nada que cambiar en la transición.',
   );
 
+// HU-072, HU-073: tiempo máximo del trámite y de cada paso, en minutos. Null lo quita.
+const minutos = z
+  .number({ invalid_type_error: 'El tiempo límite debe ser un número de minutos.' })
+  .int('El tiempo límite debe ser un número entero de minutos.')
+  .min(1, 'El tiempo límite debe ser al menos un minuto.')
+  .max(525_600, 'El tiempo límite no puede superar un año.')
+  .nullable();
+
+export const esquemaPasoOperacion = z
+  .object({
+    slaMinutos: minutos.optional(),
+    requiereFirma: z.boolean({ invalid_type_error: 'La firma debe indicarse con verdadero o falso.' }).optional(),
+  })
+  .refine((datos) => Object.values(datos).some((valor) => valor !== undefined), 'No hay nada que cambiar en el paso.');
+
+export const esquemaSlaGlobal = z.object({
+  slaGlobalMinutos: minutos,
+});
+
 // HU-059: rol, área, usuario o grupo responsable de atender un paso.
 export const esquemaResponsable = z.object({
   tipoSujeto: z.enum(TIPOS_SUJETO, {
@@ -142,6 +161,10 @@ export interface Paso {
   tipo: TipoEstado;
   posicionX: number;
   posicionY: number;
+  /** HU-073: minutos máximos para atender el paso. */
+  slaMinutos: number | null;
+  /** HU-076: el paso exige firma electrónica antes de avanzar. */
+  requiereFirma: boolean;
   responsables: Responsable[];
 }
 

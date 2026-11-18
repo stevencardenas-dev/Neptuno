@@ -19,7 +19,9 @@ export function autenticar({ secreto, emisor }) {
         id: payload.sub,
         correo: payload.correo,
         areaId: payload.areaId,
+        area: payload.area ?? null,
         roles: payload.roles ?? [],
+        rolesIds: payload.rolesIds ?? [],
         permisos: new Set(payload.permisos ?? []),
         token,
       };
@@ -30,8 +32,10 @@ export function autenticar({ secreto, emisor }) {
   };
 }
 
-export const requierePermiso = (codigo) => (req, _res, next) =>
-  req.actor.permisos.has(codigo) ? next() : next(prohibido(`Requiere el permiso ${codigo}.`));
+export const requierePermiso = (...codigos) => (req, _res, next) =>
+  codigos.some((codigo) => req.actor.permisos.has(codigo))
+    ? next()
+    : next(prohibido(`Requiere el permiso ${codigos.join(' o ')}.`));
 
 /**
  * Autoriza las llamadas entre microservicios con la cabecera `X-Servicio-Clave`.
