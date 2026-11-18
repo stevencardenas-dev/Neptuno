@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Actor, ActorActual, AutenticacionGuard, RequierePermiso, TokenActual } from '../autenticacion';
 import { ServicioTramites } from './servicio';
 
@@ -82,6 +82,20 @@ export class TramitesControlador {
   @RequierePermiso('flujo:aprobar')
   liberar(@Param('id') id: string, @ActorActual() actor: Actor) {
     return this.servicio.liberar(id, actor);
+  }
+
+  /** HU-075: firmar electrónicamente la tarea de un paso que la exige. */
+  @Post('tareas/:id/firmar')
+  @RequierePermiso('firma:aplicar')
+  firmar(@Param('id') id: string, @Body() cuerpo: unknown, @ActorActual() actor: Actor, @Ip() ip: string) {
+    return this.servicio.firmar(id, cuerpo, actor, ip ?? null);
+  }
+
+  /** HU-077: firmas aplicadas al trámite. */
+  @Get('tramites/:id/firmas')
+  @RequierePermiso('flujo:aprobar', 'flujos:administrar')
+  firmas(@Param('id') id: string) {
+    return this.servicio.firmas(id);
   }
 
   /** HU-066…HU-068: aprobar, enviar, devolver o cancelar. */

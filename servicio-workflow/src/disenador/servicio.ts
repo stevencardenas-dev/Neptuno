@@ -10,6 +10,8 @@ import {
   esquemaPasoTipo,
   esquemaResponsable,
   esquemaTransicionCrear,
+  esquemaPasoOperacion,
+  esquemaSlaGlobal,
   esquemaTransicionEditar,
   Grafo,
   PasoCrear,
@@ -43,6 +45,22 @@ export class ServicioDisenador {
     const grafo = await this.repo.grafo(id, numeroDeVersion(version));
     if (!grafo) throw noEncontrado('No existe un flujo con ese identificador.');
     return grafo;
+  }
+
+  /** HU-072: duración máxima del trámite completo. */
+  async actualizarSlaGlobal(id: string, cuerpo: unknown, actor: Actor): Promise<Grafo> {
+    this.exigirId(id);
+    const datos = this.validar<{ slaGlobalMinutos: number | null }>(cuerpo, esquemaSlaGlobal);
+    await this.repo.actualizarSlaGlobal(id, datos.slaGlobalMinutos, autor(actor));
+    return this.grafo(id);
+  }
+
+  /** HU-073, HU-076: tiempo límite y firma obligatoria de un paso. */
+  async actualizarOperacionPaso(id: string, pasoId: string, cuerpo: unknown, actor: Actor): Promise<Grafo> {
+    this.exigirId(id, pasoId);
+    const datos = this.validar<{ slaMinutos?: number | null; requiereFirma?: boolean }>(cuerpo, esquemaPasoOperacion);
+    await this.repo.actualizarOperacionPaso(id, pasoId, datos, autor(actor));
+    return this.grafo(id);
   }
 
   /** HU-080: las versiones del flujo con su estado, su autor y su fecha. */

@@ -7,13 +7,15 @@ import { conflicto, noEncontrado } from '../errores';
 import type { Accion } from '../disenador/modelo';
 import type {
   AccionDisponible,
+  Firma,
+  FiltrosBandeja,
   FlujoDisponible,
   MovimientoTramite,
   ResponsablePaso,
   TareaBandeja,
   TramiteDetalle,
 } from './modelo';
-import { esResponsable, type FiltrosBandeja } from './modelo';
+import { esResponsable, semaforoDe } from './modelo';
 
 /** UUID nulo: se usa para que un actor sin área no coincida con ningún responsable. */
 const SIN_UUID = '00000000-0000-0000-0000-000000000000';
@@ -59,6 +61,8 @@ interface FilaTarea extends RowDataPacket {
   pasoNombre: string;
   pasoTipo: string;
   estadoFlujoId: string;
+  pasoRequiereFirma?: boolean | number;
+  firmada?: boolean | number;
 }
 
 interface FilaBandeja extends FilaTarea {
@@ -339,7 +343,8 @@ export class RepositorioTramites {
       `select bin_to_uuid(ta.id) as id, bin_to_uuid(ta.tramite_id) as tramiteId, ta.estado,
               bin_to_uuid(ta.asignada_a) as asignadaA, ta.tomada_en as tomadaEn, ta.creada_en as creadaEn,
               ta.vence_en as venceEn, bin_to_uuid(es.id) as pasoId, es.nombre as pasoNombre, es.tipo as pasoTipo,
-              bin_to_uuid(es.id) as estadoFlujoId,
+              bin_to_uuid(es.id) as estadoFlujoId, es.requiere_firma as pasoRequiereFirma,
+              exists(select 1 from firma f where f.tarea_id = ta.id and f.firmante_id = uuid_to_bin(?)) as firmada,
               bin_to_uuid(tr.radicado_id) as radicadoId, tr.radicado_codigo as radicadoCodigo,
               tr.radicado_asunto as radicadoAsunto, bin_to_uuid(tr.flujo_id) as flujoId, tr.flujo_nombre as flujoNombre,
               bin_to_uuid(tr.tipo_documental_id) as tipoDocumentalId, tr.origen as origen
@@ -348,18 +353,9 @@ export class RepositorioTramites {
          join estado_flujo es on es.id = ta.estado_flujo_id
         where ${condiciones.join(' and ')}
         order by ${orden}`,
-      parametros,
+      [actor.id, ...parametros],
     );
     return this.completarTareas(filas, actor, verTodas);
-  }
-
-  /** HU-069: grupos a los que pertenece un usuario. */
-  async gruposDeUsuario(usuarioId: string): Promise<string[]> {
-    const [filas] = await this.pool.query<RowDataPacket[]>(
-      'select bin_to_uuid(grupo_id) as id from grupo_miembro where usuario_id = uuid_to_bin(?)',
-      [usuarioId],
-    );
-    return filas.map((fila) => fila.id as string);
   }
 
   /** Añade responsables y acciones a las filas, con una sola consulta por bloque. */
@@ -405,6 +401,9 @@ export class RepositorioTramites {
       creadaEn: fila.creadaEn,
       venceEn: fila.venceEn,
       vencida: Boolean(fila.venceEn && new Date(fila.venceEn).getTime() < Date.now()),
+      semaforo: semaforoDe(fila.venceEn),
+      requiereFirma: Boolean(fila.pasoRequiereFirma),
+      firmada: Boolean(fila.firmada),
       esMia: asignadaA === actor.id,
       supervision: verTodas && !atiende,
       responsables: suyos,
@@ -449,7 +448,7 @@ export class RepositorioTramites {
       `select bin_to_uuid(ta.id) as id, bin_to_uuid(ta.tramite_id) as tramiteId, ta.estado,
               bin_to_uuid(ta.asignada_a) as asignadaA, ta.tomada_en as tomadaEn, ta.creada_en as creadaEn,
               ta.vence_en as venceEn, bin_to_uuid(es.id) as pasoId, es.nombre as pasoNombre, es.tipo as pasoTipo,
-              bin_to_uuid(es.id) as estadoFlujoId,
+              bin_to_uuid(es.id) as estadoFlujoId, es.requiere_firma as requiereFirma,
               bin_to_uuid(tr.radicado_id) as radicadoId, tr.radicado_codigo as radicadoCodigo,
               tr.radicado_asunto as radicadoAsunto, bin_to_uuid(tr.flujo_id) as flujoId, tr.flujo_nombre as flujoNombre,
               bin_to_uuid(tr.version_id) as versionId, tr.estado as tramiteEstado
@@ -546,6 +545,91 @@ export class RepositorioTramites {
         detalle: { tareaId, tramiteId: tarea.tramiteId, radicadoId: tramites[0].radicadoId },
       });
     });
+  }
+
+  /** HU-075: aplica la firma electrónica del responsable sobre la tarea abierta. */
+  async firmar(
+    tareaId: string,
+    datos: { firmanteNombre: string; hashDocumento: string; metodo: 'ELECTRONICA' | 'DIGITAL'; ip: string | null },
+    actor: Autor,
+  ): Promise<Firma> {
+    const id = randomUUID();
+    return enTransaccion(this.pool, async (cx) => {
+      const tarea = await this.bloquearTarea(cx, tareaId);
+      if (tarea.estado === 'COMPLETADA' || tarea.estado === 'CANCELADA') {
+        throw conflicto('La tarea ya fue atendida.');
+      }
+      if (tarea.asignadaA && tarea.asignadaA !== actor.id) throw conflicto('Otra persona tomó esta tarea.');
+      const [tramites] = await cx.query<any[]>(
+        'select estado, bin_to_uuid(estado_actual_id) as estadoActualId from tramite where id = uuid_to_bin(?) for update',
+        [tarea.tramiteId],
+      );
+      if (!tramites.length || tramites[0].estado !== 'EN_CURSO') throw conflicto('El trámite ya está cerrado.');
+      if (tramites[0].estadoActualId !== tarea.estadoFlujoId) throw conflicto('El trámite ya avanzó a otro paso.');
+      try {
+        await cx.query(
+          `insert into firma (id, tramite_id, tarea_id, estado_flujo_id, firmante_id, firmante_nombre,
+             hash_documento, metodo, ip_origen, firmado_en)
+           values (uuid_to_bin(?), uuid_to_bin(?), uuid_to_bin(?), uuid_to_bin(?), uuid_to_bin(?), ?, ?, ?, ?, ?)`,
+          [id, tarea.tramiteId, tareaId, tarea.estadoFlujoId, actor.id, datos.firmanteNombre,
+            datos.hashDocumento, datos.metodo, datos.ip, new Date()],
+        );
+      } catch (error: any) {
+        if (error?.errno === 1062) throw conflicto('Ya firmaste esta tarea.');
+        throw error;
+      }
+      await registrarEvento(cx, {
+        tipo: 'documento.firmado',
+        entidad: 'tramite',
+        entidadId: tarea.tramiteId,
+        actor,
+        detalle: { tramiteId: tarea.tramiteId, tareaId, metodo: datos.metodo, hashDocumento: datos.hashDocumento },
+      });
+      const [filas] = await cx.query<any[]>(
+        `select bin_to_uuid(id) as id, bin_to_uuid(tramite_id) as tramiteId, bin_to_uuid(tarea_id) as tareaId,
+                bin_to_uuid(estado_flujo_id) as estadoFlujoId, bin_to_uuid(firmante_id) as firmanteId,
+                firmante_nombre as firmanteNombre, hash_documento as hashDocumento, metodo,
+                ip_origen as ipOrigen, firmado_en as firmadoEn
+           from firma where id = uuid_to_bin(?)`,
+        [id],
+      );
+      return filas[0] as Firma;
+    });
+  }
+
+  /** HU-076: ¿el actor ya firmó esta tarea? */
+  async firmaDeTarea(tareaId: string, firmanteId: string): Promise<Firma | null> {
+    const [filas] = await this.pool.query<any[]>(
+      `select bin_to_uuid(id) as id, bin_to_uuid(tramite_id) as tramiteId, bin_to_uuid(tarea_id) as tareaId,
+              bin_to_uuid(estado_flujo_id) as estadoFlujoId, bin_to_uuid(firmante_id) as firmanteId,
+              firmante_nombre as firmanteNombre, hash_documento as hashDocumento, metodo,
+              ip_origen as ipOrigen, firmado_en as firmadoEn
+         from firma where tarea_id = uuid_to_bin(?) and firmante_id = uuid_to_bin(?) limit 1`,
+      [tareaId, firmanteId],
+    );
+    return filas.length ? (filas[0] as Firma) : null;
+  }
+
+  /** HU-077: firmas aplicadas a un trámite, en orden. */
+  async firmasDe(tramiteId: string): Promise<Firma[]> {
+    const [filas] = await this.pool.query<any[]>(
+      `select bin_to_uuid(id) as id, bin_to_uuid(tramite_id) as tramiteId, bin_to_uuid(tarea_id) as tareaId,
+              bin_to_uuid(estado_flujo_id) as estadoFlujoId, bin_to_uuid(firmante_id) as firmanteId,
+              firmante_nombre as firmanteNombre, hash_documento as hashDocumento, metodo,
+              ip_origen as ipOrigen, firmado_en as firmadoEn
+         from firma where tramite_id = uuid_to_bin(?) order by firmado_en asc`,
+      [tramiteId],
+    );
+    return filas as Firma[];
+  }
+
+  /** HU-069: grupos a los que pertenece un usuario. */
+  async gruposDeUsuario(usuarioId: string): Promise<string[]> {
+    const [filas] = await this.pool.query<RowDataPacket[]>(
+      'select bin_to_uuid(grupo_id) as id from grupo_miembro where usuario_id = uuid_to_bin(?)',
+      [usuarioId],
+    );
+    return filas.map((fila) => fila.id as string);
   }
 
   /**
@@ -672,6 +756,7 @@ export class RepositorioTramites {
               tr.radicado_codigo as radicadoCodigo, tr.radicado_asunto as radicadoAsunto,
               bin_to_uuid(tr.flujo_id) as flujoId, tr.flujo_nombre as flujoNombre,
               bin_to_uuid(tr.version_id) as versionId, tr.estado,
+              bin_to_uuid(tr.tipo_documental_id) as tipoDocumentalId, tr.origen,
               tr.iniciado_en as iniciadoEn, tr.vence_en as venceEn, tr.finalizado_en as finalizadoEn,
               bin_to_uuid(tr.estado_actual_id) as estadoActualId, es.nombre as pasoNombre, es.tipo as pasoTipo,
               bin_to_uuid(es.id) as pasoId
@@ -686,12 +771,15 @@ export class RepositorioTramites {
       `select bin_to_uuid(ta.id) as id, bin_to_uuid(ta.tramite_id) as tramiteId, ta.estado,
               bin_to_uuid(ta.asignada_a) as asignadaA, ta.tomada_en as tomadaEn, ta.creada_en as creadaEn,
               ta.vence_en as venceEn, bin_to_uuid(ta.estado_flujo_id) as pasoId, es.nombre as pasoNombre,
-              es.tipo as pasoTipo, bin_to_uuid(ta.estado_flujo_id) as estadoFlujoId
+              es.tipo as pasoTipo, bin_to_uuid(ta.estado_flujo_id) as estadoFlujoId,
+              es.requiere_firma as pasoRequiereFirma
          from tarea ta join estado_flujo es on es.id = ta.estado_flujo_id
         where ta.tramite_id = uuid_to_bin(?) and ta.estado in ('PENDIENTE', 'TOMADA')
         limit 1`,
       [tramiteId],
     );
+
+    const firmas = await this.firmasDe(tramiteId);
 
     const [movimientos] = await this.pool.query<FilaMovimiento[]>(
       `select bin_to_uuid(m.id) as id, m.accion, m.observacion, bin_to_uuid(m.usuario_id) as usuarioId,
@@ -729,6 +817,12 @@ export class RepositorioTramites {
       flujoId: t.flujoId,
       flujoNombre: t.flujoNombre,
       versionId: t.versionId,
+      tipoDocumentalId: t.tipoDocumentalId,
+      origen: t.origen,
+      semaforo: semaforoDe(t.venceEn),
+      documento: null,
+      anexos: [],
+      firmas,
       estadoActualId: t.estadoActualId,
       estadoActual: t.pasoNombre,
       estado: t.estado,

@@ -1,4 +1,5 @@
 import { ErrorApi, conflicto, noEncontrado } from '../errores';
+import type { AnexoResumen } from './modelo';
 
 /**
  * Cliente de servicio-documentos (API interna con `X-Servicio-Clave`).
@@ -20,6 +21,8 @@ export interface ResumenRadicado {
 
 export interface ClienteDocumentos {
   radicado(id: string): Promise<ResumenRadicado>;
+  /** HU-065: anexos del radicado para mostrarlos en la tarea. */
+  anexos(id: string): Promise<AnexoResumen[]>;
   marcarEstado(id: string, estado: 'EN_TRAMITE' | 'FINALIZADO' | 'RADICADO'): Promise<void>;
 }
 
@@ -50,6 +53,13 @@ export function crearClienteDocumentos({ url, clave }: { url: string; clave: str
       if (respuesta.status === 404) throw noEncontrado('El radicado no existe.');
       if (!respuesta.ok) throw new ErrorApi(502, 'DOCUMENTOS_ERROR', 'El servicio de documentos respondió con un error.');
       return (await respuesta.json()) as ResumenRadicado;
+    },
+
+    async anexos(id) {
+      const respuesta = await llamar(`/radicados/${id}/anexos`);
+      if (respuesta.status === 404) return [];
+      if (!respuesta.ok) return [];
+      return (await respuesta.json()) as AnexoResumen[];
     },
 
     async marcarEstado(id, estado) {

@@ -19,6 +19,8 @@ export const RequierePermiso = (...codigos: string[]) => SetMetadata(PERMISO, co
 export interface Actor {
   id: string;
   correo: string;
+  /** Nombre completo del token; se copia a la firma electrónica (HU-075). */
+  nombre?: string;
   areaId?: string;
   roles: string[];
   rolesIds: string[];
@@ -74,6 +76,7 @@ export class AutenticacionGuard implements CanActivate {
     peticion.actor = {
       id: payload.sub,
       correo: payload.correo,
+      nombre: payload.nombre,
       areaId: payload.areaId,
       roles: payload.roles ?? [],
       rolesIds: payload.rolesIds ?? [],
